@@ -178,8 +178,10 @@ class TigerController:
         """Check if reply contains an error code; returns None or throws exception."""
         error_enum = None
         try:
-            error_enum = ErrorCodes(reply.rstrip('\r\n')) # throws a value error on failure
-            raise SyntaxError(f"Error. TigerController replied with error code: {str(error_enum)}.")
+            # throws a value error on failure
+            error_enum = ErrorCodes(reply.rstrip('\r\n'))
+            raise SyntaxError(f"Error. TigerController replied with error "
+                               "code: {str(error_enum)}.")
         except ValueError:
             pass
 
@@ -196,20 +198,10 @@ class TigerController:
 
 if __name__ == '__main__':
     import pprint
+    import time
 
     box = TigerController("COM10")
 
-    # print(f"getting position before setting it:")
-    # pprint.pprint(box.get_position("x","y","z"))
-    # box.home_in_place("x", "y", "z")
-    # print(f"getting position after homing in place:")
-    # pprint.pprint(box.get_position("x","y","z"))
-    # print("Changing position.")
-    # box.set_position(x=10, y=20, z=30)
-    # print(f"getting position after changing position:")
-    # pprint.pprint(box.get_position("x","y","z"))
-
-    import time
     TEST_TIME = 5 # seconds
     query_intervals = []
     print(f"running as many is_moving() queries in {TEST_TIME} seconds....")
