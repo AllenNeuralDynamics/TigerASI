@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Connects to the Tiger Box, moves some axes, returns to starting pose."""
 
-from tigerasi import TigerController
+from tigerasi.tiger_controller import TigerController
 import pprint
 import time
 

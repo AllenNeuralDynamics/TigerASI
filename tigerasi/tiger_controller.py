@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
-from .tigerasi.device_codes import *
+from .device_codes import *
 from enum import Enum
 
 
