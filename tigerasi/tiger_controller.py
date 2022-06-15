@@ -73,6 +73,7 @@ class TigerController:
     @axis_check
     def home_in_place(self, *args: str):
         """Zero out the specified axes"""
+        # TODO: what happens if we home a device with CLOCKED POSITIONS?
         axis_positions = {}
         if not args:
             # Default to all lettered axes.
@@ -99,6 +100,7 @@ class TigerController:
         """
         axes_str = ""
         # Fill out all args if none are populated.
+        # FIXME: remove isnumeric since we care about devices with clocked positions too.
         if not args:
             # Default to all lettered axes.
             args = [ax for ax in self.ordered_axes if not ax.isnumeric()]
