@@ -44,8 +44,10 @@ class TigerController:
 
         # Get the lettered axes: ['X', 'Y', 'Z', ...].
         self.ordered_axes = self.get_build_config()['Motor Axes']
-        ## Ugly hack for filter wheel axes, which should be prefixed with 'FW'
-        #self.ordered_axes = [f"FW{ax}" if ax.isnumeric() else ax for ax in self.ordered_axes]
+        ## FW-1000 filter wheels have their own command set but show up in
+        # axis list as '0', '1' etc, so we remove them..
+        self.ordered_filter_wheels = [fw for fw in self.ordered_axes if fw.isnumeric()]
+        self.ordered_axes = [ax for ax in self.ordered_axes if not ax.isnumeric()]
         #print(f"ordered axes are: {self.ordered_axes}")
         # Create O(1) lookup container.
         self.axes = set(self.ordered_axes)
@@ -127,6 +129,11 @@ class TigerController:
             return False
         else:
             raise RuntimeError(f"Error. Cannot tell if device is moving. Received: '{reply}'")
+
+    def clear_incoming_message_queue(self):
+        """Clear input buffer and reset skipped replies."""
+        self.skipped_replies = 0
+        self.ser.reset_input_buffer()
 
     # Low-Level Commands.
     def send(self, cmd_bytestr : bytes, wait_for_output=True, wait_for_reply=True):
