@@ -44,6 +44,9 @@ class TigerController:
 
         # Get the lettered axes: ['X', 'Y', 'Z', ...].
         self.ordered_axes = self.get_build_config()['Motor Axes']
+        ## Ugly hack for filter wheel axes, which should be prefixed with 'FW'
+        #self.ordered_axes = [f"FW{ax}" if ax.isnumeric() else ax for ax in self.ordered_axes]
+        #print(f"ordered axes are: {self.ordered_axes}")
         # Create O(1) lookup container.
         self.axes = set(self.ordered_axes)
 
@@ -93,16 +96,18 @@ class TigerController:
 
     @axis_check
     def get_position(self, *args: str):
-        """return the controller's locations.
+        """return the controller's locations for non-numeric axes.
 
         returns: a dict keyed by uppercase lettered axis who's value is
                  the position (float).
+
+        Note: filter wheels positions are not accessible this way.
         """
         axes_str = ""
         # Fill out all args if none are populated.
-        # FIXME: remove isnumeric since we care about devices with clocked positions too.
         if not args:
             # Default to all lettered axes.
+            # Note: numeric (filter wheel) axes would be ignored if we added them.
             args = [ax for ax in self.ordered_axes if not ax.isnumeric()]
         for axis in args:
             axes_str += f" {axis.upper()}"
@@ -149,12 +154,12 @@ class TigerController:
         # Note: reading at least one reply out of the buffer costs ~0.01[s]
         while True:
             reply = self.ser.read_until(b'\r\n').decode("utf8")
+            #print(f"reply: {repr(reply)}")  # for debugging
             try:
                 self.check_reply_for_errors(reply)
             except SyntaxError as e:  # Technically, this could be a skipped reply.
                 print(f"Error occurred when sending: {repr(cmd_bytestr)}")
                 raise
-            #print(f"reply: {repr(reply)}")  # for debugging
             if self.skipped_replies:
                 self.skipped_replies -= 1
             else:
@@ -183,7 +188,7 @@ class TigerController:
             # throws a value error on failure
             error_enum = ErrorCodes(reply.rstrip('\r\n'))
             raise SyntaxError(f"Error. TigerController replied with error "
-                               "code: {str(error_enum)}.")
+                              f"code: {str(error_enum)}.")
         except ValueError:
             pass
 
