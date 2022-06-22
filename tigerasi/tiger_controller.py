@@ -54,7 +54,8 @@ class TigerController:
 
     # High-Level Commands
     @axis_check
-    def move_axes_relative(self, **kwargs: int):
+    def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
+                           **kwargs: int):
         """move the axes specified in kwargs by a relative amount.
 
         Note: Units are in tenths of microns."""
@@ -62,7 +63,8 @@ class TigerController:
         for key, val in kwargs.items():
             axes_str += f" {key.upper()}={val}"
         cmd_str = Cmds.MOVEREL.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'))
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
 
     @axis_check
     def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
