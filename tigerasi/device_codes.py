@@ -13,6 +13,7 @@ class Cmds:
     HOME = b"!"
     HERE = b"H"  # [axis]=0 [axis]=0
     WHERE = b"W"  # [axis] [axis]
+    BACKLASH = b"B" # [axis]=0 [axis]=0
 
 
 class ErrorCodes(Enum):

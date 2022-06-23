@@ -99,6 +99,18 @@ class TigerController:
         self.send(cmd_str.encode('ascii'))
 
     @axis_check
+    def set_axis_backlash(self, **kwargs: float):
+        """Set the backlash compensation value.
+
+        Note: clear backlash compensation by writing 0 to that axis.
+        """
+        axes_str = ""
+        for axis, val in kwargs.items():
+            axes_str += f" {axis.upper()}={round(val, 2)}"
+        cmd_str = Cmds.BACKLASH.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'))
+
+    @axis_check
     def get_position(self, *args: str):
         """return the controller's locations for non-numeric axes.
 
