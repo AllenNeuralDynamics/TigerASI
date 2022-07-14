@@ -2,7 +2,9 @@
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
 from .device_codes import *
-from enum import Enum
+
+# Constants
+UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
 
 
 def axis_check(func):
