@@ -2,7 +2,7 @@
 """TigerController Device Codes"""
 from enum import Enum
 
-
+# TODO: make Cmds flexible enough to handle commands with arguments
 class Cmds:
     # Common commands in bytes form.
     BUILD_X = b"BU X\r"

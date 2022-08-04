@@ -81,7 +81,7 @@ class TigerController:
 
     @axis_check
     def home_in_place(self, *args: str):
-        """Zero out the specified axes"""
+        """Zero out the specified axes or all axes if none are specified."""
         # TODO: what happens if we home a device with CLOCKED POSITIONS?
         axis_positions = {}
         if not args:
@@ -150,6 +150,11 @@ class TigerController:
         """Clear input buffer and reset skipped replies."""
         self.skipped_replies = 0
         self.ser.reset_input_buffer()
+
+    def send_cmd(self, cmd: Cmds, wait_for_output=True, wait_for_reply=True):
+        """Send an enum command to the tiger stage and get the reply."""
+        return self.send(cmd, wait_for_output=wait_for_output,
+                         wait_for_reply=wait_for_reply)
 
     # Low-Level Commands.
     def send(self, cmd_bytestr : bytes, wait_for_output=True, wait_for_reply=True):
