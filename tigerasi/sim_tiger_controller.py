@@ -30,7 +30,8 @@ class TigerController:
 
     # High-Level Commands
     @axis_check
-    def move_axes_relative(self, **kwargs: int):
+    def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
+                           **kwargs: int):
         """move the axes specified in kwargs by a relative amount.
 
         Note: Units are in tenths of microns."""
@@ -81,7 +82,7 @@ class TigerController:
         if not args:
             # Default to all lettered axes.
             args = [ax for ax in self.ordered_axes if not ax.isnumeric()]
-        axes_positions = [self.sim_position[ax.lower()] for ax  in args]
+        axes_positions = [self.sim_positions[ax.lower()] for ax  in args]
         return {k: v for k, v in zip(args, axes_positions)}
 
     def is_moving(self):
