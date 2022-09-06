@@ -134,6 +134,55 @@ class TigerController:
         axes_positions = [float(v) for v in reply.split()[1:]]
         return {k: v for k, v in zip(args, axes_positions)}
 
+    @axis_check
+    def pm(self, **kwargs: str):
+        """toggle internal or external device control.
+
+        Note: 0 (internal input) or 1 (external input)
+        """
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.PM.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def scanr(self, **kwargs: str):
+        """setup the fast scanning axis."""
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.SCANR.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def scanv(self, **kwargs: str):
+        """setup the slow scanning axis."""
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.SCANV.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def scan(self, **kwargs: str):
+        """start scan and setup axes."""
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.SCAN.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def ttl(self, **kwargs: str):
+        """configure ttl modes."""
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.TTL.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
     def is_moving(self):
         """blocks. True if any axes is moving. False otherwise."""
         # Send the inquiry.
@@ -200,6 +249,18 @@ class TigerController:
              'Motor Axes': ['X', 'Y', 'Z', etc]}
         """
         reply = self.send(Cmds.BUILD_X)
+        # Reply is formatted in such a way that it can be put into dict form.
+        return self._reply_to_dict(reply)
+
+    def get_pzinfo(self, card_address = None):
+        """return the configuration of the specified card.
+
+        returns: a dict
+        """
+        if not istring(card_address):
+            card_address = str(card_address)
+        cmd_str = card_address + Cmds.PZINFO.decode('utf8') + '\r'
+        reply = self.send(cmd_str.encode('ascii'))
         # Reply is formatted in such a way that it can be put into dict form.
         return self._reply_to_dict(reply)
 
