@@ -135,7 +135,7 @@ class TigerController:
         return {k: v for k, v in zip(args, axes_positions)}
 
     @axis_check
-    def pm(self, **kwargs: str):
+    def pm(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
         """toggle internal or external device control.
 
         Note: 0 (internal input) or 1 (external input)
@@ -147,7 +147,7 @@ class TigerController:
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scanr(self, **kwargs: str):
+    def scanr(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
         """setup the fast scanning axis."""
         axes_str = ""
         for key, val in kwargs.items():
@@ -156,7 +156,7 @@ class TigerController:
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scanv(self, **kwargs: str):
+    def scanv(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
         """setup the slow scanning axis."""
         axes_str = ""
         for key, val in kwargs.items():
@@ -165,7 +165,7 @@ class TigerController:
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scan(self, **kwargs: str):
+    def scan(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
         """start scan and setup axes."""
         axes_str = ""
         for key, val in kwargs.items():
@@ -226,7 +226,7 @@ class TigerController:
         # Note: reading at least one reply out of the buffer costs ~0.01[s]
         while True:
             reply = self.ser.read_until(b'\r\n').decode("utf8")
-            #print(f"reply: {repr(reply)}")  # for debugging
+            # print(f"reply: {repr(reply)}")  # for debugging
             try:
                 self.check_reply_for_errors(reply)
             except SyntaxError as e:  # Technically, this could be a skipped reply.
@@ -257,12 +257,12 @@ class TigerController:
 
         returns: a dict
         """
-        if not istring(card_address):
+        if not isinstance(card_address, str):
             card_address = str(card_address)
         cmd_str = card_address + Cmds.PZINFO.decode('utf8') + '\r'
         reply = self.send(cmd_str.encode('ascii'))
-        # Reply is formatted in such a way that it can be put into dict form.
-        return self._reply_to_dict(reply)
+        # note: reply is not formatted to dict
+        return self._reply_split(reply)
 
     @staticmethod
     def check_reply_for_errors(reply: str):
@@ -286,6 +286,14 @@ class TigerController:
                 dict_reply[words[0]] = val
         return dict_reply
 
+    @staticmethod
+    def _reply_split(reply):
+        dict_reply = {}
+        index = 0
+        for line in reply.split('\r'):
+            dict_reply[index] = line
+            index += 1
+        return dict_reply
 
 if __name__ == '__main__':
     import pprint
