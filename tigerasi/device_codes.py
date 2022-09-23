@@ -14,6 +14,7 @@ class Cmds:
     HERE = b"H"  # [axis]=0 [axis]=0
     WHERE = b"W"  # [axis] [axis]
     BACKLASH = b"B" # [axis]=0 [axis]=0
+    CNTS = b"CNTS" # [axis]?
 
 
 class ErrorCodes(Enum):
