@@ -252,14 +252,12 @@ class TigerController:
         # Reply is formatted in such a way that it can be put into dict form.
         return self._reply_to_dict(reply)
 
-    def get_pzinfo(self, card_address = None):
+    def get_pzinfo(self, card_address):
         """return the configuration of the specified card.
 
         returns: a dict
         """
-        if not isinstance(card_address, str):
-            card_address = str(card_address)
-        cmd_str = card_address + Cmds.PZINFO.decode('utf8') + '\r'
+        cmd_str = str(card_address) + Cmds.PZINFO.decode('utf8') + '\r'
         reply = self.send(cmd_str.encode('ascii'))
         # note: reply is not formatted to dict
         return self._reply_split(reply)
@@ -284,15 +282,6 @@ class TigerController:
             if len(words) == 2:
                 val = words[1].split()
                 dict_reply[words[0]] = val
-        return dict_reply
-
-    @staticmethod
-    def _reply_split(reply):
-        dict_reply = {}
-        index = 0
-        for line in reply.split('\r'):
-            dict_reply[index] = line
-            index += 1
         return dict_reply
 
 if __name__ == '__main__':
