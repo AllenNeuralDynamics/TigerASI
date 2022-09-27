@@ -144,7 +144,7 @@ class TigerController:
         reply = self.send(cmd_str.encode('ascii'))
         return float(reply.split('=')[-1])
 
-@axis_check
+    @axis_check
     def pm(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
         """toggle internal or external device control.
 
