@@ -136,13 +136,53 @@ class TigerController:
         return {k: v for k, v in zip(args, axes_positions)}
 
     @axis_check
-    @cache
-    def get_encoder_ticks_per_mm(self, axis: str):
-        """Get <encoder ticks> / <mm of travel> for the specified axis."""
-        axis_str = f" {axis.upper()}?"
-        cmd_str = Cmds.CNTS + axis_str + '\r'
-        reply = self.send(cmd_str.encode('ascii'))
-        return float(reply.split('=')[-1])
+    def pm(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
+        """toggle internal or external device control.
+
+        Note: 0 (internal input) or 1 (external input)
+        """
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.PM.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def scanr(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
+        """setup the fast scanning axis."""
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.SCANR.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def scanv(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
+        """setup the slow scanning axis."""
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.SCANV.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def scan(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
+        """start scan and setup axes."""
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.SCAN.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def ttl(self, **kwargs: str):
+        """configure ttl modes."""
+        axes_str = ""
+        for key, val in kwargs.items():
+            axes_str += f" {key.upper()}={val}"
+        cmd_str = Cmds.TTL.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
 
     def is_moving(self):
         """blocks. True if any axes is moving. False otherwise."""
@@ -212,6 +252,16 @@ class TigerController:
         reply = self.send(Cmds.BUILD_X)
         # Reply is formatted in such a way that it can be put into dict form.
         return self._reply_to_dict(reply)
+
+    def get_pzinfo(self, card_address):
+        """return the configuration of the specified card.
+
+        returns: a dict
+        """
+        cmd_str = str(card_address) + Cmds.PZINFO.decode('utf8') + '\r'
+        reply = self.send(cmd_str.encode('ascii'))
+        # note: reply is not formatted to dict
+        return self._reply_split(reply)
 
     @staticmethod
     def check_reply_for_errors(reply: str):

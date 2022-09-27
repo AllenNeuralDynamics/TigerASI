@@ -6,7 +6,7 @@ import pprint
 import time
 
 
-PORT_NAME = "/dev/ttyACM0"# a string indicating the port name.
+PORT_NAME = "COM3"# a string indicating the port name.
 # port name can be left as None on Linux if udev rules were installed.
 
 print("Connecting to Tiger Controller... ", end=" ", flush=True)
@@ -14,14 +14,17 @@ tigerbox = TigerController(PORT_NAME)
 print("Done.")
 
 print("Box Configuration:")
-pprint.pprint(tigerbox.get_build_config)
+pprint.pprint(tigerbox.get_build_config())
 
-print("Setting current location as zero.")
-tigerbox.home_in_place()
+print("Test PM control of axis")
+tigerbox.pm(v=0)
 
-tigerbox.move_axes_relative(x=10000, y=10000)
+print("Test scan commands")
+tigerbox.scanr(x=0, y=1)
+tigerbox.scanv(x=0, y=0, z=1)
+tigerbox.scan()
 
-tigerbox.move_axes_absolute(x=0, y=0)
-
+print("Test PZINFO")
+print(tigerbox.get_pzinfo(card_address = "35"))
 
 print("End of demo.")
