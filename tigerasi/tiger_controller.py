@@ -136,6 +136,15 @@ class TigerController:
         return {k: v for k, v in zip(args, axes_positions)}
 
     @axis_check
+    @cache
+    def get_encoder_ticks_per_mm(self, axis: str):
+        """Get <encoder ticks> / <mm of travel> for the specified axis."""
+        axis_str = f" {axis.upper()}?"
+        cmd_str = Cmds.CNTS + axis_str + '\r'
+        reply = self.send(cmd_str.encode('ascii'))
+        return float(reply.split('=')[-1])
+
+@axis_check
     def pm(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
         """toggle internal or external device control.
 
@@ -227,7 +236,7 @@ class TigerController:
         # Note: reading at least one reply out of the buffer costs ~0.01[s]
         while True:
             reply = self.ser.read_until(b'\r\n').decode("utf8")
-            #print(f"reply: {repr(reply)}")  # for debugging
+            # print(f"reply: {repr(reply)}")  # for debugging
             try:
                 self.check_reply_for_errors(reply)
             except SyntaxError as e:  # Technically, this could be a skipped reply.
