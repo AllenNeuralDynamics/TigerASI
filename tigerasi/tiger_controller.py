@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
+from functools import cache
 from .device_codes import *
 
 # Constants
@@ -15,7 +16,7 @@ def axis_check(func):
         # Otherwise, check axes specified in **kwargs.
         iterable = args if len(args) else kwargs.keys()
         for arg in iterable:
-            # skip keyworded flags.
+            # skip keyworded wait flags.
             if arg.startswith("wait_") and arg in kwargs:
                 continue
             assert arg.upper() in self.axes, \
@@ -135,6 +136,15 @@ class TigerController:
         return {k: v for k, v in zip(args, axes_positions)}
 
     @axis_check
+    @cache
+    def get_encoder_ticks_per_mm(self, axis: str):
+        """Get <encoder ticks> / <mm of travel> for the specified axis."""
+        axis_str = f" {axis.upper()}?"
+        cmd_str = Cmds.CNTS + axis_str + '\r'
+        reply = self.send(cmd_str.encode('ascii'))
+        return float(reply.split('=')[-1])
+
+    @axis_check
     def pm(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
         """toggle internal or external device control.
 
@@ -204,10 +214,10 @@ class TigerController:
     def send(self, cmd_bytestr : bytes, wait_for_output=True, wait_for_reply=True):
         """Send a command; optionally wait for various conditions.
 
-        param wait: wait until the serial port finishes sending the message.
-        param wait_for_output: wait until all outgoing bytes exit the PC.
-        param wait_for_reply: wait until at least one line has been read in
-                              by the PC.
+        :param wait: wait until the serial port finishes sending the message.
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+                               by the PC.
         """
         #print(f"sending: {repr(cmd_bytestr.decode('utf8'))}")  # for debugging
         self.ser.write(cmd_bytestr)
@@ -283,6 +293,7 @@ class TigerController:
                 val = words[1].split()
                 dict_reply[words[0]] = val
         return dict_reply
+
 
 if __name__ == '__main__':
     import pprint

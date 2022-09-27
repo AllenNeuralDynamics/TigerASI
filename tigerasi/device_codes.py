@@ -14,6 +14,7 @@ class Cmds:
     HERE = b"H"  # [axis]=0 [axis]=0
     WHERE = b"W"  # [axis] [axis]
     BACKLASH = b"B" # [axis]=0 [axis]=0
+    CNTS = b"CNTS" # [axis]?
     SCAN = b"SCAN" # [X?] [Y=fast_axis_id, default X] [Z=slow_axis_id, default Y] [F=pattern]
     SCANR = b"SCANR" # fast_axis [X=start in mm] [Y=stop in mm] [Z=enc_divide] [F= #_pixels] [R=retrace_speed]
     SCANV = b"SCANV" # slow_axis [X=start in mm] [Y=stop in mm] [Z=number_of_lines] [F=overshoot_time in ms] [T=scan_overshoot]

@@ -8,6 +8,8 @@ from enum import Enum
 # TODO: consider mocking the serial port directly OR
 #   consider mocking the replies.
 
+DEFAULT_ENC_TICKS_TO_MM = 181590.4
+
 
 class TigerController:
     """Tiger Box Serial Port Abstraction."""
@@ -84,6 +86,9 @@ class TigerController:
             args = [ax for ax in self.ordered_axes if not ax.isnumeric()]
         axes_positions = [self.sim_positions[ax.lower()] for ax  in args]
         return {k: v for k, v in zip(args, axes_positions)}
+
+    def get_encoder_ticks_per_mm(self, axis: str):
+        return DEFAULT_ENC_TICKS_TO_MM
 
     def is_moving(self):
         """blocks. True if any axes is moving. False otherwise."""
