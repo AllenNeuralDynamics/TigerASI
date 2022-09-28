@@ -6,6 +6,7 @@ from enum import Enum
 class Cmds:
     # Common commands in bytes form.
     BUILD_X = b"BU X\r"
+    HALT = b"\\\r"
     STATUS = b"/\r"
     RDSTAT = b"RS" # RS [axis]?
     MOVEREL = b"R"
@@ -18,9 +19,11 @@ class Cmds:
     SCAN = b"SCAN" # [X?] [Y=fast_axis_id, default X] [Z=slow_axis_id, default Y] [F=pattern]
     SCANR = b"SCANR" # fast_axis [X=start in mm] [Y=stop in mm] [Z=enc_divide] [F= #_pixels] [R=retrace_speed]
     SCANV = b"SCANV" # slow_axis [X=start in mm] [Y=stop in mm] [Z=number_of_lines] [F=overshoot_time in ms] [T=scan_overshoot]
+    SPEED = b"S"
     TTL = b"TTL" # [X=IN0_mode] [Y=OUT0_mode] [Z=aux_IO_state] [F=OUT0_polarity] [R=aux_IO_mask] [T=aux_IO_mode]
     PM = b"PM" # PM [axis]=[0 or 1] for mirror, [0 or 3] for ETL
     PZINFO = b"PZINFO" # [card address]PZINFO
+    Z2B = b'Z2B' # Z2B Y? |or| Z2B Y=1 to set the axis id.
 
 
 class ErrorCodes(Enum):
@@ -47,3 +50,23 @@ class ErrorCodes(Enum):
     FILTERWHEEL_RESERVED_20 = ':N-20'
     SERIAL_CMD_HALTED = ':N-21'
 
+
+class ScanState(Enum):
+    """Scan states"""
+    # http://asiimaging.com/docs/commands/scan
+    START = b'S'
+    STOP = b'P'
+    # More read-only scan states exist, but are not captured here.
+
+
+class ScanPattern(Enum):
+    """parameter for specifying scan pattern."""
+    RASTER = 0
+    SERPENTINE = 1
+
+
+class ControlMode(Enum):
+    INTERNAL_CLOSED_LOOP = 0
+    EXTERNAL_CLOSED_LOOP = 1
+    INTERNAL_OPEN_LOOP = 2
+    EXTERNAL_OPEN_LOOP = 3
