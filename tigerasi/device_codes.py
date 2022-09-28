@@ -6,6 +6,7 @@ from enum import Enum
 class Cmds:
     # Common commands in bytes form.
     BUILD_X = b"BU X\r"
+    HALT = b"\\\r"
     STATUS = b"/\r"
     RDSTAT = b"RS" # RS [axis]?
     MOVEREL = b"R"
