@@ -55,6 +55,11 @@ class TigerController:
         # Create O(1) lookup container.
         self.axes = set(self.ordered_axes)
 
+    def halt(self, wait_for_output: bool = True, wait_for_reply: bool = True):
+        """stop any moving axis."""
+        self.send(Cmds.HALT, wait_for_output=wait_for_reply,
+                  wait_for_reply=wait_for_reply)
+
     # High-Level Commands
     @axis_check
     def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
@@ -134,6 +139,23 @@ class TigerController:
         reply = self.send(cmd_str.encode('ascii'))
         axes_positions = [float(v) for v in reply.split()[1:]]
         return {k: v for k, v in zip(args, axes_positions)}
+
+    @axis_check
+    def set_speed(self, **kwargs: float):
+        """Set one or more axis speeds to a value in [mm/sec]."""
+        axes_str = ""
+        for axis, speed in kwargs.items():
+            axes_str += f" {axis.upper()}={round(speed, 4)}"
+        cmd_str = Cmds.SPEED.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'))
+
+    @axis_check
+    def get_speed(self, axis: str):
+        """return the speed from the specified axis in [mm/sec]."""
+        axis_str = f" {axis.upper()}?"
+        cmd_str = Cmds.SPEED.decode('utf8') + axis_str + '\r'
+        reply = self.send(cmd_str.encode('ascii'))
+        return float(reply.split('=')[-1])
 
     @axis_check
     @cache
