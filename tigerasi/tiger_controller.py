@@ -30,7 +30,7 @@ class TigerController:
 
     # Constants
     BAUD_RATE = 115200
-    TIMEOUT = 5
+    TIMEOUT = 1
 
     def __init__(self, com_port):
         self.ser = None
