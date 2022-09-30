@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
-from functools import cache
+#from functools import cache
 from .device_codes import *
 
 # Constants
@@ -157,8 +157,8 @@ class TigerController:
         reply = self.send(cmd_str.encode('ascii'))
         return float(reply.split('=')[-1])
 
+    # NOTE: @cache only available in 3.9+
     @axis_check
-    @cache
     def get_encoder_ticks_per_mm(self, axis: str):
         """Get <encoder ticks> / <mm of travel> for the specified axis."""
         axis_str = f" {axis.upper()}?"
