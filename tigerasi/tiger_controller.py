@@ -142,7 +142,7 @@ class TigerController:
 
     @axis_check
     def set_speed(self, **kwargs: float):
-        """Set one or more axis speeds to a value in mm/sec."""
+        """Set one or more axis speeds to a value in [mm/sec]."""
         axes_str = ""
         for axis, speed in kwargs.items():
             axes_str += f" {axis.upper()}={round(speed, 4)}"
@@ -151,7 +151,7 @@ class TigerController:
 
     @axis_check
     def get_speed(self, axis: str):
-        """return the speed from the specified axis."""
+        """return the speed from the specified axis in [mm/sec]."""
         axis_str = f" {axis.upper()}?"
         cmd_str = Cmds.SPEED.decode('utf8') + axis_str + '\r'
         reply = self.send(cmd_str.encode('ascii'))
