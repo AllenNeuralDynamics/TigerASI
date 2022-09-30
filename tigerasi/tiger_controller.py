@@ -162,50 +162,118 @@ class TigerController:
     def get_encoder_ticks_per_mm(self, axis: str):
         """Get <encoder ticks> / <mm of travel> for the specified axis."""
         axis_str = f" {axis.upper()}?"
-        cmd_str = Cmds.CNTS + axis_str + '\r'
+        cmd_str = Cmds.CNTS.decode('utf8') + axis_str + '\r'
         reply = self.send(cmd_str.encode('ascii'))
         return float(reply.split('=')[-1])
 
     @axis_check
-    def pm(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
-        """toggle internal or external device control.
+    def get_axis_id(self, axis: str):
+        """Get the hardware's axis id for a given axis."""
+        cmd_str = Cmds.Z2B.decode('utf8') + f"{axis.upper()}?" + '\r'
+        reply = self.send(cmd_str.encode('ascii'))
+        return int(reply.split('=')[-1])
 
-        Note: 0 (internal input) or 1 (external input)
+    @axis_check
+    def pm(self, wait_for_output=True, wait_for_reply=True,
+           **kwargs: ControlMode):
+        """Set internal or external, open or closed loop, axis control.
+
+        Setting an axis to external control enables control from the external
+        TTL input port on the device hardware.
         """
         axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
+        for axis, ctrl_mode in kwargs.items():
+            axes_str += f" {axis.upper()}={ctrl_mode.value}"
         cmd_str = Cmds.PM.decode('utf8') + axes_str + '\r'
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scanr(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
-        """setup the fast scanning axis."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCANR.decode('utf8') + axes_str + '\r'
+    def start_scan(self):
+        self.scan(ScanState.START)
+
+    def stop_scan(self):
+        self.scan(ScanState.STOP)
+
+    def scanr(self, scan_start_mm: float, scan_stop_mm: float = None,
+              pulse_interval_enc_ticks: int = 1, num_pixels: int = None,
+              retrace_speed: int = 67,
+              wait_for_output: bool = True, wait_for_reply: bool = True):
+        """Setup the fast scanning axis start position and distance OR start
+        position and number of pixels. To setup a scan, either scan_stop_mm
+        or num_pixels must be specified, but not both.
+
+        :param scan_start_mm: absolute position (in machine coordinate frame)
+            to start the scan.
+        :param scan_stop_mm: absolute position to start the scan. If
+            unspecified, num_pixels is required.
+        :param pulse_interval_enc_ticks: spacing (in encoder ticks) between
+            output pulses.
+            i.e: a pulse will output ever pulse_interval_enc_ticks.
+        :param num_pixels:  number of pixels to output a pulse for. If
+            unspecified, scan_stop_mm is required.
+        :param retrace_speed: percentage (0-100) of how fast to backtrack to
+            the scan start position after finishing a scan.
+
+        :param wait_for_output: whether to wait for the message to exit the pc.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
+        """
+        # We can specify scan_stop_mm or num_pixels but not both (i.e: XOR).
+        if not ((scan_stop_mm is None) ^ (num_pixels is None)):
+            raise SyntaxError("Exclusively either scan_stop_mm or num_pixels "
+                              "(i.e: one or the other, but not both) options "
+                              "must be specified.")
+        # Build parameter list.
+        scan_stop_str = f" Y={round(scan_stop, 4)}" if scan_stop else ""
+        num_pixels_str = f" F={pixels}" if num_pixels else ""
+        args_str = f" X={round(scan_start_mm, 4)}{scan_stop_str}" \
+                   f" Z={pulse_interval_enc_ticks}{num_pixels_str}" \
+                   f" R={retrace_speed}"
+        cmd_str = Cmds.SCANR.decode('utf8') + args_str + '\r'
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scanv(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
+    def scanv(self, scan_start_mm: float, scan_stop_mm: float, line_count: int,
+              overshoot_time_ms: int = None, overshoot_dist_mm: float = None,
+              wait_for_output=True, wait_for_reply=True):
         """setup the slow scanning axis."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCANV.decode('utf8') + axes_str + '\r'
+        overshoot_time_str = f" F={overshoot_time_ms}" \
+            if overshoot_time_ms is not None else ""
+        overshoot_dist_str = f" T={round(overshoot_dist_mm, 4)}" \
+            if overshoot_dist_mm is not None else ""
+        args_str = f" X={round(scan_start_mm, 4)} Y={round(scan_stop_mm, 4)}" \
+                   f" Z={line_count}{overshoot_time_str}{overshoot_dist_str}"
+        cmd_str = Cmds.SCANV.decode('utf8') + args_str + '\r'
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scan(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
-        """start scan and setup axes."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCAN.decode('utf8') + axes_str + '\r'
+    def scan(self, state: ScanState = None, fast_axis_id: str = None,
+             slow_axis_id: str = None,
+             pattern: ScanPattern = None):
+        """start scan and define axes used for scanning.
+
+        Note: fast_axis and slow_axis are specified via 'axis id', which can
+            be queried with the
+            :meth:`~tiger_controller.TigerController.get_axis_id` query.
+
+        :param state: start or stop the scan depending on input scan
+            state.
+        :param fast_axis: the axis (specified via axis id) declared as the
+            fast-scan axis.
+        :param slow_axis: the axis (specified via axis id) declared as the
+            slow-scan axis.
+        :param pattern: Raster or Serpentine scan pattern.
+        """
+        state_str = f" {state.value}" if state is not None else ""
+        fast_axis_str = f" Y={fast_axis}" if fast_axis is not None else ""
+        slow_axis_str = f" Z={slow_axis}" if slow_axis is not None else ""
+        pattern_str = f" F={pattern.value}" if pattern is not None else ""
+
+        cmd_str = Cmds.SCAN.decode('utf8') + scan_state_str + fast_axis_str\
+                  + slow_axis_str + pattern_str + '\r'
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
+    # FIXME: what are the kwargs here?
     def ttl(self, **kwargs: str):
         """configure ttl modes."""
         axes_str = ""
