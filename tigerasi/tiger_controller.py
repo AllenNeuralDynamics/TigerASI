@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
-#from functools import cache
+from functools import cache
 from .device_codes import *
+import logging
 
 # Constants
 UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
@@ -30,10 +31,11 @@ class TigerController:
 
     # Constants
     BAUD_RATE = 115200
-    TIMEOUT = 5
+    TIMEOUT = 1
 
     def __init__(self, com_port):
         self.ser = None
+        self.log = logging.getLogger(__name__)
         self.skipped_replies = 0
         try:
             self.ser = Serial(com_port, TigerController.BAUD_RATE,
@@ -157,8 +159,8 @@ class TigerController:
         reply = self.send(cmd_str.encode('ascii'))
         return float(reply.split('=')[-1])
 
-    # NOTE: @cache only available in 3.9+
     @axis_check
+    @cache
     def get_encoder_ticks_per_mm(self, axis: str):
         """Get <encoder ticks> / <mm of travel> for the specified axis."""
         axis_str = f" {axis.upper()}?"
@@ -309,7 +311,7 @@ class TigerController:
         :param wait_for_reply: wait until at least one line has been read in
                                by the PC.
         """
-        #print(f"sending: {repr(cmd_bytestr.decode('utf8'))}")  # for debugging
+        self.log.debug(f"sending: {repr(cmd_bytestr.decode('utf8'))}")
         self.ser.write(cmd_bytestr)
         if wait_for_output:  # Wait for all bytes to exit the output buffer.
             while self.ser.out_waiting:
@@ -326,11 +328,12 @@ class TigerController:
         # Note: reading at least one reply out of the buffer costs ~0.01[s]
         while True:
             reply = self.ser.read_until(b'\r\n').decode("utf8")
-            # print(f"reply: {repr(reply)}")  # for debugging
+            self.log.debug(f"reply: {repr(reply)}")
             try:
                 self.check_reply_for_errors(reply)
             except SyntaxError as e:  # Technically, this could be a skipped reply.
-                print(f"Error occurred when sending: {repr(cmd_bytestr)}")
+                self.log.error("Error occurred when sending: "
+                               f"{repr(cmd_bytestr)}")
                 raise
             if self.skipped_replies:
                 self.skipped_replies -= 1
