@@ -204,9 +204,11 @@ class TigerController:
         position and number of pixels. To setup a scan, either scan_stop_mm
         or num_pixels must be specified, but not both.
 
-        :param scan_start_mm: absolute position (in machine coordinate frame)
-            to start the scan.
-        :param scan_stop_mm: absolute position to start the scan. If
+        See `ASI SCANR Implementation http://asiimaging.com/docs/commands/scanr`
+        for more details.
+
+        :param scan_start_mm: absolute position to start the scan.
+        :param scan_stop_mm: absolute position to stop the scan. If
             unspecified, num_pixels is required.
         :param pulse_interval_enc_ticks: spacing (in encoder ticks) between
             output pulses.
@@ -215,7 +217,6 @@ class TigerController:
             unspecified, scan_stop_mm is required.
         :param retrace_speed: percentage (0-100) of how fast to backtrack to
             the scan start position after finishing a scan.
-
         :param wait_for_output: whether to wait for the message to exit the pc.
         :param wait_for_reply: whether to wait for the tigerbox to reply.
         """
@@ -235,22 +236,41 @@ class TigerController:
                   wait_for_reply=wait_for_reply)
 
     def scanv(self, scan_start_mm: float, scan_stop_mm: float, line_count: int,
-              overshoot_time_ms: int = None, overshoot_dist_mm: float = None,
+              overshoot_time_ms: int = None, overshoot_factor: float = None,
               wait_for_output=True, wait_for_reply=True):
-        """setup the slow scanning axis."""
+        """Setup the slow scanning axis.
+
+        Behavior is equivalent to:
+        :python:`numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)`.
+
+        See `ASI SCANV Implementation http://asiimaging.com/docs/commands/scanv`
+        for more details.
+
+        :param scan_start_mm: absolute position to start the scan in the slow
+            axis dimension.
+        :param scan_stop_mm: absolute position to stop the scan in the slow
+            axis dimension.
+        :param line_count: how many lines to scan on the slow axis.
+        :param overshoot_time_ms: extra time (in ms) for the stage to settle
+            (in addition to the current time set by the :code:`AC` command.)
+        :param overshoot_factor: scalar multiplier (default: 1.0) to add
+            distance to the start and stop of a scan before initiating the
+            starting of pulses.
+        :param wait_for_output: whether to wait for the message to exit the pc.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
+        """
         overshoot_time_str = f" F={overshoot_time_ms}" \
             if overshoot_time_ms is not None else ""
-        overshoot_dist_str = f" T={round(overshoot_dist_mm, 4)}" \
-            if overshoot_dist_mm is not None else ""
+        overshoot_factor_str = f" T={round(overshoot_factor_mm, 4)}" \
+            if overshoot_factor_mm is not None else ""
         args_str = f" X={round(scan_start_mm, 4)} Y={round(scan_stop_mm, 4)}" \
-                   f" Z={line_count}{overshoot_time_str}{overshoot_dist_str}"
+                   f" Z={line_count}{overshoot_time_str}{overshoot_factor_str}"
         cmd_str = Cmds.SCANV.decode('utf8') + args_str + '\r'
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     def scan(self, state: ScanState = None, fast_axis_id: str = None,
-             slow_axis_id: str = None,
-             pattern: ScanPattern = None):
+             slow_axis_id: str = None, pattern: ScanPattern = None):
         """start scan and define axes used for scanning.
 
         Note: fast_axis and slow_axis are specified via 'axis id', which can
@@ -265,7 +285,7 @@ class TigerController:
             slow-scan axis.
         :param pattern: Raster or Serpentine scan pattern.
         """
-        state_str = f" {state.value}" if state is not None else ""
+        scan_state_str = f" {state.value}" if state is not None else ""
         fast_axis_str = f" Y={fast_axis}" if fast_axis is not None else ""
         slow_axis_str = f" Z={slow_axis}" if slow_axis is not None else ""
         pattern_str = f" F={pattern.value}" if pattern is not None else ""
@@ -275,13 +295,34 @@ class TigerController:
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    # FIXME: what are the kwargs here?
-    def ttl(self, **kwargs: str):
-        """configure ttl modes."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.TTL.decode('utf8') + axes_str + '\r'
+    def ttl(self, in0_mode: int = None, out0_mode: int = None,
+            reverse_output_polarity: bool = False,
+            aux_io_state: int = None, aux_io_mask: int = None,
+            aux_io_mode: int = None,
+            wait_for_reply: bool = False, wait_for_output: bool = False):
+        """Setup ttl external IO modes or query state (no arguments).
+
+        :param in0_mode:
+        :param out0_mode:
+        :param reverse_output_polarity:
+        :param aux_io_state:
+        :param aux_io_mask:
+        :param aux_io_mode:
+        :param wait_for_output: whether to wait for the message to exit the pc.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
+        """
+        # TODO range checks.
+        in0_str = f" X={in0_mode}" if in0_mode is not None else ""
+        out0_str = f" Y={out0_mode}" if out0_mode is not None else ""
+        auxstate_str = f" Z={aux_io_state}" if aux_io_state is not None else ""
+        polarity_str = f" F={int(reverse_output_polarity)}" \
+            if reverse_output_polarity is not None else ""
+        auxmask_str = f" R={aux_io_mask}" if aux_io_mask is not None else ""
+        auxmode_str = f" T={aux_io_mode}" if aux_io_mode is not None else ""
+        # Aggregate specified params.
+        param_str = f"{in0_str}{out0_str}{auxstate_str}{polarity_str}" \
+                    f"{auxmask_str}{auxmode_str}"
+        cmd_str = Cmds.TTL.decode('utf8') + param_str + '\r'
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
