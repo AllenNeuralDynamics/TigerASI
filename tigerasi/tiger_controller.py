@@ -299,15 +299,18 @@ class TigerController:
             reverse_output_polarity: bool = False,
             aux_io_state: int = None, aux_io_mask: int = None,
             aux_io_mode: int = None,
-            wait_for_reply: bool = False, wait_for_output: bool = False):
+            wait_for_reply: bool = True, wait_for_output: bool = True):
         """Setup ttl external IO modes or query state (no arguments).
+        
+        See `ASI TTL Implementation http://asiimaging.com/docs/commands/ttl`
+        for more details.
 
-        :param in0_mode:
+        :param in0_mode: set TTL trigger mode when configured as input.
         :param out0_mode:
         :param reverse_output_polarity:
         :param aux_io_state:
         :param aux_io_mask:
-        :param aux_io_mode:
+        :param aux_io_mode: Set what determines TTL value when set as outputs.
         :param wait_for_output: whether to wait for the message to exit the pc.
         :param wait_for_reply: whether to wait for the tigerbox to reply.
         """
@@ -315,7 +318,7 @@ class TigerController:
         in0_str = f" X={in0_mode}" if in0_mode is not None else ""
         out0_str = f" Y={out0_mode}" if out0_mode is not None else ""
         auxstate_str = f" Z={aux_io_state}" if aux_io_state is not None else ""
-        polarity_str = f" F={int(reverse_output_polarity)}" \
+        polarity_str = f" F={-1 if reverse_output_polarity else 1}" \
             if reverse_output_polarity is not None else ""
         auxmask_str = f" R={aux_io_mask}" if aux_io_mask is not None else ""
         auxmode_str = f" T={aux_io_mode}" if aux_io_mode is not None else ""
