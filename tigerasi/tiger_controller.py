@@ -109,6 +109,65 @@ class TigerController:
         self.send(cmd_str.encode('ascii'))
 
     @axis_check
+    def get_machine_frame_home(self, *args: str):
+        """Return the position to home to in [mm] for the specified axes in the
+        machine frame.
+
+        Note: the machine frame is fixed and read-only.
+
+        :param args: the axes to get the machine frame home value for.
+        """
+        # send the cmd.
+        axes_str = " ".join([f"{a.upper()}?" for a in args])
+        cmd_str = Cmds.SETHOME.decode('utf8') + axes_str + '\r'
+        reply = self.send(cmd_str.encode('ascii'))
+        axes_positions = [float(v) for v in reply.split()[1:]]
+        return {k: v for k, v in zip(args, axes_positions)}
+
+    @axis_check
+    def set_machine_frame_home(self, *args, **kwargs: float):
+        """Set the home position of the specified axes in the machine frame.
+
+        Note: the machine frame is fixed and read-only.
+
+        :param args: axes for which to specify the current position as home.
+        :param kwargs: axes for which to specify a particular position as home.
+        """
+        # Figure out if any axes were specified twice.
+        intersection = {a.upper() for a in args} & \
+                       {k.upper() for k, _ in kwargs.items()}
+        if len(intersection):
+            raise SyntaxError("The following axes cannot be specified to home"
+                              "both at the current position and a specific "
+                              f"position: {intersection}.")
+        # Construct and dispatch the command.
+        curr_pos_str = " ".join([f"{a.upper()}+" for a in args])
+        set_pos_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
+        cmd_str = f"{Cmds.SETHOME.decode('utf8')} {curr_pos_str} " \
+                  f"{set_pos_str}\r"
+        self.send(cmd_str.encode('ascii'))
+
+    def set_axis_travel_limits(self, axis: str, min_mm: float = None,
+                               max_mm: float = None):
+        """Set the minimum and maximum axis travel limits for a given axis.
+        This travel limit is enforced against a fixed, read-only, axis travel
+        range, not the soft position, which can be rezeroed and read at any
+        time.
+
+        :param axis: which tiger axis to set the limits for.
+        :param min_mm: minimum travel value in [mm] on the fixed axis scale.
+        :param max_mm: maximum travel value in [mm] on the fixed axis scale.
+        """
+        if min_mm is not None:
+            min_cmd_str = f"{Cmds.SETLOW.decode('utf8')} " \
+                          f"{axis.upper()}={min_mm:.4f}\r"
+            self.send(min_cmd_str.encode('ascii'))
+        if max_mm is not None:
+            max_cmd_str = f"{Cmds.SETUP.decode('utf8')} " \
+                          f"{axis.upper()}={max_mm:.4f}\r"
+            self.send(max_cmd_str.encode('ascii'))
+
+    @axis_check
     def set_axis_backlash(self, **kwargs: float):
         """Set the backlash compensation value.
 
