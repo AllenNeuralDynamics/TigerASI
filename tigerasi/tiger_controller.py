@@ -11,7 +11,6 @@ UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
 
 def axis_check(func):
     """Ensure that the axis (specified as an arg or kwarg) exists."""
-
     def inner(self, *args, **kwargs):
         # Check if axes are specified in *args.
         # Otherwise, check axes specified in **kwargs.
@@ -22,6 +21,20 @@ def axis_check(func):
                 continue
             assert arg.upper() in self.axes, \
                 f"Error. Axis '{arg.upper()}' does not exist"
+        return func(self, *args, **kwargs)
+    return inner
+
+
+def no_repeated_axis_check(func):
+    """Ensure that an axis was specified either as an arg xor as a kwarg."""
+    def inner(self, *args, **kwargs):
+        # Figure out if any axes was specified twice.
+        intersection = {a.upper() for a in args} & \
+                       {k.upper() for k, _ in kwargs.items()}
+        if len(intersection):
+            raise SyntaxError("The following axes cannot be specified "
+                              "both at the current position and at a specific "
+                              f"position: {intersection}.")
         return func(self, *args, **kwargs)
     return inner
 
@@ -88,8 +101,75 @@ class TigerController:
                   wait_for_reply=wait_for_reply)
 
     @axis_check
-    def home_in_place(self, *args: str):
-        """Zero out the specified axes"""
+    def home(self, *args: str,
+             wait_for_output: bool = True, wait_for_reply: bool = True):
+        """Move to the preset home position (or hard axis travel limit) for
+        the specified axes. If the preset position is not reachable, move until
+        a hardware stage limit is reached.
+
+        Note: Because the homing procedure may either reach the specified
+            software limit or a hardware limit, it is not safe to assume that
+            a stage axis is in the prespecified homing position upon finishing
+            this routine.
+        """
+        axes_str = " ".join([f"{a.upper()}?" for a in args])
+        cmd_str = f"{Cmds.HOME.decode('utf8')} {axes_str}\r"
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    @axis_check
+    @no_repeated_axis_check
+    def set_home(self, *args: str, **kwargs: float):
+        """Set the position to home to in [mm].
+
+        Note: the machine frame is fixed and read-only.
+        Note: the values written here will persist across power cycles.
+
+        :param args: axes for which to specify the current position as home.
+        :param kwargs: axes for which to specify a particular position as home.
+
+        ..code_block::
+            set_home('x', 'y', 'z')  # current position set as home OR
+            set_home(x=100, y=20.5, z=0)  # specific positions for home OR
+            set_home('x', y=20.5)  # mix of both.
+        """
+        curr_pos_str = " ".join([f"{a.upper()}+" for a in args])
+        set_pos_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
+        cmd_str = f"{Cmds.SETHOME.decode('utf8')} {curr_pos_str} " \
+                  f"{set_pos_str}\r"
+        self.send(cmd_str.encode('ascii'))
+
+    @axis_check
+    def reset_home(self, *args: str):
+        """Restore home values of the axes specified to firmware defaults.
+
+        Note: the firmware default is intentionally an unreachable stage
+        position such that each axis triggers its hardware stage limit.
+        """
+        # Construct and dispatch the command.
+        curr_pos_str = " ".join([f"{a.upper()}-" for a in args])
+        cmd_str = f"{Cmds.SETHOME.decode('utf8')} {curr_pos_str}\r"
+        self.send(cmd_str.encode('ascii'))
+
+    @axis_check
+    def get_home(self, *args: str):
+        """Return the position to home to in [mm] for the specified axes in the
+        machine frame.
+
+        Note: the machine frame is fixed and read-only.
+
+        :param args: the axes to get the machine frame home value for.
+        """
+        args = self._order_axes(args)  # Enforce reply order.
+        axes_str = " ".join([f"{a.upper()}?" for a in args])
+        cmd_str = f"{Cmds.SETHOME.decode('utf8')} {axes_str}\r"
+        reply = self.send(cmd_str.encode('ascii'))
+        axes_positions = [float(v.split("=")[1]) for v in reply.split()[1:]]
+        return {k: v for k, v in zip(args, axes_positions)}
+
+    @axis_check
+    def zero_in_place(self, *args: str):
+        """Set the specified axes' current positions to zero."""
         # TODO: what happens if we home a device with CLOCKED POSITIONS?
         axis_positions = {}
         if not args:
@@ -109,63 +189,44 @@ class TigerController:
         self.send(cmd_str.encode('ascii'))
 
     @axis_check
-    def get_machine_frame_home(self, *args: str):
-        """Return the position to home to in [mm] for the specified axes in the
-        machine frame.
+    @no_repeated_axis_check
+    def set_lower_travel_limit(self, *args: str, **kwargs: float):
+        """Set the specified axes upper travel limits to the current position
+        or to a specified position in [mm].
 
-        Note: the machine frame is fixed and read-only.
+        :param args: axes to specify the current position as lower limit.
+        :param kwargs: axes to specify input position as the lower limit.
 
-        :param args: the axes to get the machine frame home value for.
+        ..code_block::
+            set_lower_travel_limit('x', 'y')  # current positions as limit OR
+            set_lower_travel_limit(x=50, y=4.0)  # specific positions as limit OR
+            set_lower_travel_limit('x', y=20.5)  # mix of both.
         """
-        # send the cmd.
-        axes_str = " ".join([f"{a.upper()}?" for a in args])
-        cmd_str = Cmds.SETHOME.decode('utf8') + axes_str + '\r'
-        reply = self.send(cmd_str.encode('ascii'))
-        axes_positions = [float(v) for v in reply.split()[1:]]
-        return {k: v for k, v in zip(args, axes_positions)}
-
-    @axis_check
-    def set_machine_frame_home(self, *args, **kwargs: float):
-        """Set the home position of the specified axes in the machine frame.
-
-        Note: the machine frame is fixed and read-only.
-
-        :param args: axes for which to specify the current position as home.
-        :param kwargs: axes for which to specify a particular position as home.
-        """
-        # Figure out if any axes were specified twice.
-        intersection = {a.upper() for a in args} & \
-                       {k.upper() for k, _ in kwargs.items()}
-        if len(intersection):
-            raise SyntaxError("The following axes cannot be specified to home"
-                              "both at the current position and a specific "
-                              f"position: {intersection}.")
-        # Construct and dispatch the command.
         curr_pos_str = " ".join([f"{a.upper()}+" for a in args])
         set_pos_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
-        cmd_str = f"{Cmds.SETHOME.decode('utf8')} {curr_pos_str} " \
+        cmd_str = f"{Cmds.SETLOW.decode('utf8')} {curr_pos_str} " \
                   f"{set_pos_str}\r"
         self.send(cmd_str.encode('ascii'))
 
-    def set_axis_travel_limits(self, axis: str, min_mm: float = None,
-                               max_mm: float = None):
-        """Set the minimum and maximum axis travel limits for a given axis.
-        This travel limit is enforced against a fixed, read-only, axis travel
-        range, not the soft position, which can be rezeroed and read at any
-        time.
+    @axis_check
+    @no_repeated_axis_check
+    def set_upper_travel_limit(self, *args: str, **kwargs: float):
+        """Set the specified axes upper travel limits to the current position
+        or to a specified position in [mm].
 
-        :param axis: which tiger axis to set the limits for.
-        :param min_mm: minimum travel value in [mm] on the fixed axis scale.
-        :param max_mm: maximum travel value in [mm] on the fixed axis scale.
+        :param args: axes to specify the current position as lower limit.
+        :param kwargs: axes to specify input position as the lower limit.
+
+        ..code_block::
+            set_upper_travel_limit('x', 'y')  # current positions as limit OR
+            set_upper_travel_limit(x=50, y=4.0)  # specific positions as limit OR
+            set_upper_travel_limit('x', y=20.5)  # mix of both.
         """
-        if min_mm is not None:
-            min_cmd_str = f"{Cmds.SETLOW.decode('utf8')} " \
-                          f"{axis.upper()}={min_mm:.4f}\r"
-            self.send(min_cmd_str.encode('ascii'))
-        if max_mm is not None:
-            max_cmd_str = f"{Cmds.SETUP.decode('utf8')} " \
-                          f"{axis.upper()}={max_mm:.4f}\r"
-            self.send(max_cmd_str.encode('ascii'))
+        curr_pos_str = " ".join([f"{a.upper()}+" for a in args])
+        set_pos_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
+        cmd_str = f"{Cmds.SETUP.decode('utf8')} {curr_pos_str} " \
+                  f"{set_pos_str}\r"
+        self.send(cmd_str.encode('ascii'))
 
     @axis_check
     def set_axis_backlash(self, **kwargs: float):
@@ -190,8 +251,7 @@ class TigerController:
         """
         axes_str = ""
         # Order the args since the hardware reply arrives in a fixed order.
-        args = [arg.upper() for arg in args]
-        args = [ax for ax in self.ordered_axes if ax in args]
+        args = self._order_axes(args)
         # Fill out all args if none are populated.
         if not args:
             # Default to all lettered axes.
@@ -358,6 +418,12 @@ class TigerController:
         reply = self.send(cmd_str.encode('ascii'))
         # note: reply is not formatted to dict
         return self._reply_split(reply)
+
+    def _order_axes(self, axes: tuple[str]) -> list[str]:
+        """return axes in the order they are received in replies from tigerbox.
+        """
+        axes = [ax.upper() for ax in axes]
+        return [ax for ax in self.ordered_axes if ax in axes]
 
     @staticmethod
     def check_reply_for_errors(reply: str):
