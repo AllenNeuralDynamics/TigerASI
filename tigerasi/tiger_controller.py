@@ -47,7 +47,7 @@ class TigerController:
                   "Is the device plugged in? Is another program using it?")
             raise
 
-        # Get the lettered axes: ['X', 'Y', 'Z', ...].
+        # Get the lettered axes in hardware order: ['X', 'Y', 'Z', ...].
         self.ordered_axes = self.get_build_config()['Motor Axes']
         ## FW-1000 filter wheels have their own command set but show up in
         # axis list as '0', '1' etc, so we remove them..
@@ -183,12 +183,15 @@ class TigerController:
     def get_position(self, *args: str):
         """return the controller's locations for non-numeric axes.
 
-        returns: a dict keyed by uppercase lettered axis who's value is
+        returns: a dict keyed by uppercase lettered axis whose value is
                  the position (float).
 
         Note: filter wheels positions are not accessible this way.
         """
         axes_str = ""
+        # Order the args since the hardware reply arrives in a fixed order.
+        args = [arg.upper() for arg in args]
+        args = [ax for ax in self.ordered_axes if ax in args]
         # Fill out all args if none are populated.
         if not args:
             # Default to all lettered axes.
