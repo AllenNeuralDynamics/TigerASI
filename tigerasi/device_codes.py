@@ -1,31 +1,31 @@
 #!/usr/bin/env python3
 """TigerController Device Codes"""
-from enum import Enum
+from enum import StrEnum
 
-# FIXME: actually make this an enum class.
-class Cmds:
+
+class Cmds(StrEnum):
     # Common commands in bytes form.
-    BUILD_X = b"BU X\r"
-    HALT = b"\\\r"
-    STATUS = b"/\r"
-    RDSTAT = b"RS" # RS [axis]?
-    MOVEREL = b"R"
-    MOVEABS = b"M"
-    HOME = b"!"
-    HERE = b"H"  # [axis]=0 [axis]=0
-    WHERE = b"W"  # [axis] [axis]
-    BACKLASH = b"B" # [axis]=0 [axis]=0
-    CNTS = b"CNTS" # [axis]?
-    SCAN = b"SCAN" # [X?] [Y=fast_axis_id, default X] [Z=slow_axis_id, default Y] [F=pattern]
-    SCANR = b"SCANR" # fast_axis [X=start in mm] [Y=stop in mm] [Z=enc_divide] [F= #_pixels] [R=retrace_speed]
-    SCANV = b"SCANV" # slow_axis [X=start in mm] [Y=stop in mm] [Z=number_of_lines] [F=overshoot_time in ms] [T=scan_overshoot]
-    SETHOME = b"HM"
-    SETLOW = b"SL"
-    SETUP = b"SU"
-    SPEED = b"S"
-    TTL = b"TTL" # [X=IN0_mode] [Y=OUT0_mode] [Z=aux_IO_state] [F=OUT0_polarity] [R=aux_IO_mask] [T=aux_IO_mode]
-    PM = b"PM" # PM [axis]=[0 or 1] for mirror, [0 or 3] for ETL
-    PZINFO = b"PZINFO" # [card address]PZINFO
+    BUILD_X = "BU X"
+    HALT = "\\"
+    STATUS = "/"
+    RDSTAT = "RS" # RS [axis]?
+    MOVEREL = "R"
+    MOVEABS = "M"
+    HOME = "!"
+    HERE = "H"  # [axis]=0 [axis]=0
+    WHERE = "W"  # [axis] [axis]
+    BACKLASH = "B" # [axis]=0 [axis]=0
+    CNTS = "CNTS" # [axis]?
+    SCAN = "SCAN" # [X?] [Y=fast_axis_id, default X] [Z=slow_axis_id, default Y] [F=pattern]
+    SCANR = "SCANR" # fast_axis [X=start in mm] [Y=stop in mm] [Z=enc_divide] [F= #_pixels] [R=retrace_speed]
+    SCANV = "SCANV" # slow_axis [X=start in mm] [Y=stop in mm] [Z=number_of_lines] [F=overshoot_time in ms] [T=scan_overshoot]
+    SETHOME = "HM"
+    SETLOW = "SL"
+    SETUP = "SU"
+    SPEED = "S"
+    TTL = "TTL" # [X=IN0_mode] [Y=OUT0_mode] [Z=aux_IO_state] [F=OUT0_polarity] [R=aux_IO_mask] [T=aux_IO_mode]
+    PM = "PM" # PM [axis]=[0 or 1] for mirror, [0 or 3] for ETL
+    PZINFO = "PZINFO" # [card address]PZINFO
 
 
 class ErrorCodes(Enum):

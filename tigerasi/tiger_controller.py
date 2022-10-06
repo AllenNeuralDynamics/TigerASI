@@ -72,7 +72,7 @@ class TigerController:
 
     def halt(self, wait_for_output: bool = True, wait_for_reply: bool = True):
         """stop any moving axis."""
-        self.send(Cmds.HALT, wait_for_output=wait_for_reply,
+        self.send(f"{Cmds.HALT.value}\r", wait_for_output=wait_for_reply,
                   wait_for_reply=wait_for_reply)
 
     # High-Level Commands
@@ -82,23 +82,20 @@ class TigerController:
         """move the axes specified in kwargs by a relative amount.
 
         Note: Units are in tenths of microns."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.MOVEREL.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+        self._set_cmd_args_and_kwds(Cmds.MOVEREL, **kwargs,
+                                    wait_for_output=wait_for_output,
+                                    wait_for_reply=wait_for_reply)
 
     @axis_check
     def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
-        """move the axes specified in kwargs by the specified absolute amount (in tenths of microns)."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.MOVEABS.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+        """move the axes specified in kwargs by the specified absolute amount
+
+        Note: Units are in tenths of microns.
+        """
+        self._set_cmd_args_and_kwds(Cmds.MOVEABS, **kwargs,
+                                    wait_for_output=wait_for_output,
+                                    wait_for_reply=wait_for_reply)
 
     @axis_check
     def home(self, *args: str,
@@ -112,14 +109,14 @@ class TigerController:
             a stage axis is in the prespecified homing position upon finishing
             this routine.
         """
-        axes_str = " ".join([f"{a.upper()}?" for a in args])
-        cmd_str = f"{Cmds.HOME.decode('utf8')} {axes_str}\r"
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+        self._set_cmd_args_and_kwds(self.HOME, *args,
+                                    wait_for_output=wait_for_output,
+                                    wait_for_reply=wait_for_reply)
 
     @axis_check
     @no_repeated_axis_check
-    def set_home(self, *args: str, **kwargs: float):
+    def set_home(self, *args: str, wait_for_output: bool = True,
+                 wait_for_reply: bool = True, **kwargs: float):
         """Set the current or specified position to home to in [mm].
 
         Note: the values written here will persist across power cycles and
@@ -128,22 +125,31 @@ class TigerController:
 
         :param args: axes for which to specify the current position as home.
         :param kwargs: axes for which to specify a particular position as home.
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+                               by the PC.
 
         ..code_block::
             set_home('x', 'y', 'z')  # current position set as home OR
             set_home(x=100, y=20.5, z=0)  # specific positions for home OR
             set_home('x', y=20.5)  # mix of both.
         """
-        return self._set_cmd_curr_or_new_value(Cmds.SETHOME, *args, **kwargs)
+        args = [f"{ax}+" for ax in args]
+        return self._set_cmd_args_and_kwds(Cmds.SETHOME, *args, **kwargs,
+                                           wait_for_output=wait_for_output,
+                                           wait_for_reply=wait_for_reply)
 
     @axis_check
-    def reset_home(self, *args: str):
+    def reset_home(self, *args: str, wait_for_output: bool = True,
+                   wait_for_reply: bool = True):
         """Restore home values of the axes specified to firmware defaults.
 
         Note: the firmware default is intentionally an unreachable stage
         position such that each axis triggers its hardware stage limit.
         """
-        return self._reset_setting(Cmds.SETHOME, *args)
+        return self._reset_setting(Cmds.SETHOME, *args,
+                                   wait_for_output=wait_for_output,
+                                   wait_for_reply=wait_for_reply)
 
     @axis_check
     def get_home(self, *args: str):
@@ -169,17 +175,17 @@ class TigerController:
         self.set_position(**axis_positions)
 
     @axis_check
-    def set_position(self, **kwargs: float):
+    def set_position(self, wait_for_output: bool = True,
+                     wait_for_reply: bool = True, **kwargs: float):
         """Set the specified axes to the specified positions."""
-        axes_str = ""
-        for axis, val in kwargs.items():
-            axes_str += f" {axis.upper()}={val}"
-        cmd_str = Cmds.HERE.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'))
+        self._set_cmd_args_and_kwds(Cmds.HERE, **kwargs,
+                                    wait_for_output=wait_for_output,
+                                    wait_for_reply=wait_for_reply)
 
     @axis_check
     @no_repeated_axis_check
-    def set_lower_travel_limit(self, *args: str, **kwargs: float):
+    def set_lower_travel_limit(self, *args: str, wait_for_output: bool = True,
+                               wait_for_reply: bool = True, **kwargs: float):
         """Set the specified axes lower travel limits to the current position
         or to a specified position in [mm].
 
@@ -189,13 +195,19 @@ class TigerController:
 
         :param args: axes to specify the current position as lower limit.
         :param kwargs: axes to specify input position as the lower limit.
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+                               by the PC.
 
         ..code_block::
             set_lower_travel_limit('x', 'y')  # current positions as limit OR
             set_lower_travel_limit(x=50, y=4.0)  # specific positions as limit OR
             set_lower_travel_limit('x', y=20.5)  # mix of both.
         """
-        return self._set_cmd_curr_or_new_value(Cmds.SETLOW, *args, **kwargs)
+        args = [f"{ax}+" for ax in args]
+        return self._set_cmd_args_and_kwds(Cmds.SETLOW, *args, **kwargs,
+                                           wait_for_output=wait_for_output,
+                                           wait_for_reply=wait_for_reply)
 
     @axis_check
     def get_lower_travel_limit(self, *args: str):
@@ -208,13 +220,18 @@ class TigerController:
         return self._get_axis_value(Cmds.SETLOW, *args)
 
     @axis_check
-    def reset_lower_travel_limits(self, *args: str):
+    def reset_lower_travel_limits(self, *args: str,
+                                  wait_for_output: bool = True,
+                                  wait_for_reply: bool = True):
         """Restore lower travel limit on specified axes to firmware defaults."""
-        return self._reset_setting(Cmds.SETLOW, *args)
+        return self._reset_setting(Cmds.SETLOW, *args,
+                                   wait_for_output=wait_for_output,
+                                   wait_for_reply=wait_for_reply)
 
     @axis_check
     @no_repeated_axis_check
-    def set_upper_travel_limit(self, *args: str, **kwargs: float):
+    def set_upper_travel_limit(self, *args: str, wait_for_output: bool = True,
+                               wait_for_reply: bool = True, **kwargs: float):
         """Set the specified axes upper travel limits to the current position
         or to a specified position in [mm].
 
@@ -224,13 +241,19 @@ class TigerController:
 
         :param args: axes to specify the current position as upper limit.
         :param kwargs: axes to specify input position as the upper limit.
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+                               by the PC.
 
         ..code_block::
             set_upper_travel_limit('x', 'y')  # current positions as limit OR
             set_upper_travel_limit(x=50, y=4.0)  # specific positions as limit OR
             set_upper_travel_limit('x', y=20.5)  # mix of both.
         """
-        return self._set_cmd_curr_or_new_value(Cmds.SETUP, *args, **kwargs)
+        args = [f"{ax}+" for ax in args]
+        return self._set_cmd_args_and_kwds(Cmds.SETUP, *args, **kwargs,
+                                           wait_for_output=wait_for_output,
+                                           wait_for_reply=wait_for_reply)
 
     @axis_check
     def get_upper_travel_limit(self, *args: str):
@@ -243,21 +266,24 @@ class TigerController:
         return self._get_axis_value(Cmds.SETUP, *args)
 
     @axis_check
-    def reset_upper_travel_limits(self, *args: str):
+    def reset_upper_travel_limits(self, *args: str,
+                                  wait_for_output: bool = True,
+                                  wait_for_reply: bool = True):
         """Restore lower travel limit on specified axes to firmware defaults."""
-        return self._reset_setting(Cmds.SETUP, *args)
+        return self._reset_setting(Cmds.SETUP, *args,
+                                   wait_for_output=wait_for_output,
+                                   wait_for_reply=wait_for_reply)
 
     @axis_check
-    def set_axis_backlash(self, **kwargs: float):
+    def set_axis_backlash(self, wait_for_output: bool = True,
+                          wait_for_reply: bool = True, **kwargs):
         """Set the backlash compensation value.
 
         Note: clear backlash compensation by writing 0 to that axis.
         """
-        axes_str = ""
-        for axis, val in kwargs.items():
-            axes_str += f" {axis.upper()}={round(val, 2)}"
-        cmd_str = Cmds.BACKLASH.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'))
+        self._set_cmd_args_and_kwds(Cmds.BACKLASH, **kwargs,
+                                    wait_for_output=wait_for_output,
+                                    wait_for_reply=wait_for_reply)
 
     @axis_check
     def get_position(self, *args: str):
@@ -278,35 +304,33 @@ class TigerController:
             args = [ax for ax in self.ordered_axes if not ax.isnumeric()]
         for axis in args:
             axes_str += f" {axis.upper()}"
-        cmd_str = Cmds.WHERE.decode('utf8') + axes_str + '\r'
-        reply = self.send(cmd_str.encode('ascii'))
+        cmd_str = Cmds.WHERE.value + axes_str + '\r'
+        reply = self.send(cmd_str)
         axes_positions = [float(v) for v in reply.split()[1:]]
         return {k: v for k, v in zip(args, axes_positions)}
 
     @axis_check
-    def set_speed(self, **kwargs: float):
+    def set_speed(self, wait_for_output: bool = True,
+                  wait_for_reply: bool = True, **kwargs: float):
         """Set one or more axis speeds to a value in [mm/sec]."""
-        axes_str = ""
-        for axis, speed in kwargs.items():
-            axes_str += f" {axis.upper()}={round(speed, 4)}"
-        cmd_str = Cmds.SPEED.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'))
+        self._set_cmd_args_and_kwds(Cmds.SPEED, **kwargs,
+                                    wait_for_output=wait_for_output,
+                                    wait_for_reply=wait_for_reply)
 
+    # TODO: needs testing.
     @axis_check
-    def get_speed(self, axis: str):
+    def get_speed(self, *args):
         """return the speed from the specified axis in [mm/sec]."""
-        axis_str = f" {axis.upper()}?"
-        cmd_str = Cmds.SPEED.decode('utf8') + axis_str + '\r'
-        reply = self.send(cmd_str.encode('ascii'))
-        return float(reply.split('=')[-1])
+        return self._get_axis_value(Cmds.SPEED, *args)
 
     @axis_check
     @cache
     def get_encoder_ticks_per_mm(self, axis: str):
         """Get <encoder ticks> / <mm of travel> for the specified axis."""
+        # TODO: can this function accept an arbitrary number of args?
         axis_str = f" {axis.upper()}?"
-        cmd_str = Cmds.CNTS + axis_str + '\r'
-        reply = self.send(cmd_str.encode('ascii'))
+        cmd_str = Cmds.CNTS.value + axis_str + '\r'
+        reply = self.send(cmd_str)
         return float(reply.split('=')[-1])
 
     @axis_check
@@ -318,8 +342,8 @@ class TigerController:
         axes_str = ""
         for key, val in kwargs.items():
             axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.PM.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+        cmd_str = Cmds.PM.value + axes_str + '\r'
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     def scanr(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
@@ -327,8 +351,8 @@ class TigerController:
         axes_str = ""
         for key, val in kwargs.items():
             axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCANR.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+        cmd_str = Cmds.SCANR.value + axes_str + '\r'
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     def scanv(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
@@ -336,8 +360,8 @@ class TigerController:
         axes_str = ""
         for key, val in kwargs.items():
             axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCANV.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+        cmd_str = Cmds.SCANV.value + axes_str + '\r'
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     def scan(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
@@ -345,8 +369,8 @@ class TigerController:
         axes_str = ""
         for key, val in kwargs.items():
             axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCAN.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+        cmd_str = Cmds.SCAN.value + axes_str + '\r'
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     def ttl(self, **kwargs: str):
@@ -354,14 +378,14 @@ class TigerController:
         axes_str = ""
         for key, val in kwargs.items():
             axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.TTL.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+        cmd_str = Cmds.TTL.value + axes_str + '\r'
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     def is_moving(self):
         """blocks. True if any axes is moving. False otherwise."""
         # Send the inquiry.
-        reply = self.send(Cmds.STATUS).rstrip('\r\n')
+        reply = self.send(Cmds.STATUS.value).rstrip('\r\n')
         # interpret reply.
         if reply == "B":
             return True
@@ -376,21 +400,22 @@ class TigerController:
         self.ser.reset_input_buffer()
 
     # Low-Level Commands.
-    def send(self, cmd_bytestr : bytes, wait_for_output=True, wait_for_reply=True):
+    def send(self, cmd_str: str, wait_for_output=True, wait_for_reply=True):
         """Send a command; optionally wait for various conditions.
 
-        :param wait: wait until the serial port finishes sending the message.
+        :param cmd_str: command string with parameters and terminated with '\r'
+            to send to the tiger controller.
         :param wait_for_output: wait until all outgoing bytes exit the PC.
         :param wait_for_reply: wait until at least one line has been read in
                                by the PC.
         """
-        self.log.debug(f"sending: {repr(cmd_bytestr.decode('utf8'))}")
-        self.ser.write(cmd_bytestr)
+        self.log.debug(f"sending: {cmd_str}")
+        self.ser.write(cmd_str.encode('ascii'))
         if wait_for_output:  # Wait for all bytes to exit the output buffer.
             while self.ser.out_waiting:
                 pass
         # If we do not wait for a reply, we must track how many replies to read later.
-        if not wait_for_reply :
+        if not wait_for_reply:
             self.skipped_replies += 1
             return
         # Every command issues a reply from the TigerController.
@@ -424,7 +449,7 @@ class TigerController:
              'Hex Addr': [],
              'Motor Axes': ['X', 'Y', 'Z', etc]}
         """
-        reply = self.send(Cmds.BUILD_X)
+        reply = self.send(f"{Cmds.BUILD_X.value}\r")
         # Reply is formatted in such a way that it can be put into dict form.
         return self._reply_to_dict(reply)
 
@@ -433,8 +458,8 @@ class TigerController:
 
         returns: a dict
         """
-        cmd_str = str(card_address) + Cmds.PZINFO.decode('utf8') + '\r'
-        reply = self.send(cmd_str.encode('ascii'))
+        cmd_str = str(card_address) + Cmds.PZINFO.value + '\r'
+        reply = self.send(cmd_str)
         # note: reply is not formatted to dict
         return self._reply_split(reply)
 
@@ -444,25 +469,35 @@ class TigerController:
         axes = [ax.upper() for ax in axes]
         return [ax for ax in self.ordered_axes if ax in axes]
 
-    def _reset_setting(self, cmd: Cmds, *args):
+    def _reset_setting(self, cmd: Cmds, *args, wait_for_output: bool = True,
+                       wait_for_reply: bool = True):
         """Reset a setting that takes an input query with specific syntax."""
         curr_pos_str = " ".join([f"{a.upper()}-" for a in args])
-        cmd_str = f"{cmd.decode('utf8')} {curr_pos_str}\r"
-        self.send(cmd_str.encode('ascii'))
+        cmd_str = f"{cmd.value} {curr_pos_str}\r"
+        self.send(cmd_str, wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
 
-    def _set_cmd_curr_or_new_value(self, cmd: Cmds, *args, **kwargs):
-        """Set a setting to the current or a specified value."""
-        curr_pos_str = " ".join([f"{a.upper()}+" for a in args])
-        set_pos_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
-        cmd_str = f"{cmd.decode('utf8')} {curr_pos_str} " \
-                  f"{set_pos_str}\r"
-        self.send(cmd_str.encode('ascii'))
+    def _set_cmd_args_and_kwds(self, cmd: Cmds, *args: str,
+                               wait_for_output: bool = True,
+                               wait_for_reply: bool = True, **kwargs: float):
+        """Flag a parameter or set a parameter with a specified value.
+
+        ..code::
+            _set_cmd_args_and_kwds(Cmds.SETHOME, 'x', 'y', 'z')
+            _set_cmd_args_and_kwds(Cmds.SETHOME, 'x', y=10, z=20.5)
+            _set_cmd_args_and_kwds(Cmds.SETHOME, y=10, z=20.5)
+        """
+        args_str = " ".join([f"{a.upper()}" for a in args])
+        kwds_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
+        cmd_str = f"{cmd.value} {args_str} {kwds_str}\r"
+        return self.send(cmd_str, wait_for_output=wait_for_output,
+                         wait_for_reply=wait_for_reply)
 
     def _get_axis_value(self, cmd: Cmds, *args):
         """Get the value from one or more axes."""
         axes_str = " ".join([f"{a.upper()}?" for a in args])
-        cmd_str = f"{cmd.decode('utf8')} {axes_str}\r"
-        reply = self.send(cmd_str.encode('ascii')).split()[1:]
+        cmd_str = f"{cmd.value} {axes_str}\r"
+        reply = self.send(cmd_str).split()[1:]  # Trim the acknowledgement part
         axis_val_tuples = [c.split("=") for c in reply]
         return {w[0].upper(): float(w[1]) for w in axis_val_tuples}
 
