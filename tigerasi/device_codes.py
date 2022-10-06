@@ -2,7 +2,7 @@
 """TigerController Device Codes"""
 from enum import Enum
 
-
+# FIXME: actually make this an enum class.
 class Cmds:
     # Common commands in bytes form.
     BUILD_X = b"BU X\r"
@@ -19,6 +19,9 @@ class Cmds:
     SCAN = b"SCAN" # [X?] [Y=fast_axis_id, default X] [Z=slow_axis_id, default Y] [F=pattern]
     SCANR = b"SCANR" # fast_axis [X=start in mm] [Y=stop in mm] [Z=enc_divide] [F= #_pixels] [R=retrace_speed]
     SCANV = b"SCANV" # slow_axis [X=start in mm] [Y=stop in mm] [Z=number_of_lines] [F=overshoot_time in ms] [T=scan_overshoot]
+    SETHOME = b"HM"
+    SETLOW = b"SL"
+    SETUP = b"SU"
     SPEED = b"S"
     TTL = b"TTL" # [X=IN0_mode] [Y=OUT0_mode] [Z=aux_IO_state] [F=OUT0_polarity] [R=aux_IO_mask] [T=aux_IO_mode]
     PM = b"PM" # PM [axis]=[0 or 1] for mirror, [0 or 3] for ETL

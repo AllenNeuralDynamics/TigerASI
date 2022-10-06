@@ -11,7 +11,6 @@ UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
 
 def axis_check(func):
     """Ensure that the axis (specified as an arg or kwarg) exists."""
-
     def inner(self, *args, **kwargs):
         # Check if axes are specified in *args.
         # Otherwise, check axes specified in **kwargs.
@@ -22,6 +21,20 @@ def axis_check(func):
                 continue
             assert arg.upper() in self.axes, \
                 f"Error. Axis '{arg.upper()}' does not exist"
+        return func(self, *args, **kwargs)
+    return inner
+
+
+def no_repeated_axis_check(func):
+    """Ensure that an axis was specified either as an arg xor as a kwarg."""
+    def inner(self, *args, **kwargs):
+        # Figure out if any axes was specified twice.
+        intersection = {a.upper() for a in args} & \
+                       {k.upper() for k, _ in kwargs.items()}
+        if len(intersection):
+            raise SyntaxError("The following axes cannot be specified "
+                              "both at the current position and at a specific "
+                              f"position: {intersection}.")
         return func(self, *args, **kwargs)
     return inner
 
@@ -88,8 +101,64 @@ class TigerController:
                   wait_for_reply=wait_for_reply)
 
     @axis_check
-    def home_in_place(self, *args: str):
-        """Zero out the specified axes"""
+    def home(self, *args: str,
+             wait_for_output: bool = True, wait_for_reply: bool = True):
+        """Move to the preset home position (or hard axis travel limit) for
+        the specified axes. If the preset position is not reachable, move until
+        a hardware stage limit is reached.
+
+        Note: Because the homing procedure may either reach the specified
+            software limit or a hardware limit, it is not safe to assume that
+            a stage axis is in the prespecified homing position upon finishing
+            this routine.
+        """
+        axes_str = " ".join([f"{a.upper()}?" for a in args])
+        cmd_str = f"{Cmds.HOME.decode('utf8')} {axes_str}\r"
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    @axis_check
+    @no_repeated_axis_check
+    def set_home(self, *args: str, **kwargs: float):
+        """Set the current or specified position to home to in [mm].
+
+        Note: the values written here will persist across power cycles and
+            adjust automatically such that the physical location remains
+            constant.
+
+        :param args: axes for which to specify the current position as home.
+        :param kwargs: axes for which to specify a particular position as home.
+
+        ..code_block::
+            set_home('x', 'y', 'z')  # current position set as home OR
+            set_home(x=100, y=20.5, z=0)  # specific positions for home OR
+            set_home('x', y=20.5)  # mix of both.
+        """
+        return self._set_cmd_curr_or_new_value(Cmds.SETHOME, *args, **kwargs)
+
+    @axis_check
+    def reset_home(self, *args: str):
+        """Restore home values of the axes specified to firmware defaults.
+
+        Note: the firmware default is intentionally an unreachable stage
+        position such that each axis triggers its hardware stage limit.
+        """
+        return self._reset_setting(Cmds.SETHOME, *args)
+
+    @axis_check
+    def get_home(self, *args: str):
+        """Return the position to home to in [mm] for the specified axes.
+
+        Note: the returned value will adjust automatically such that the
+            physical location remains constant.
+
+        :param args: the axes to get the machine frame home value for.
+        """
+        return self._get_axis_value(Cmds.SETHOME, *args)
+
+    @axis_check
+    def zero_in_place(self, *args: str):
+        """Set the specified axes' current positions to zero."""
         # TODO: what happens if we home a device with CLOCKED POSITIONS?
         axis_positions = {}
         if not args:
@@ -107,6 +176,76 @@ class TigerController:
             axes_str += f" {axis.upper()}={val}"
         cmd_str = Cmds.HERE.decode('utf8') + axes_str + '\r'
         self.send(cmd_str.encode('ascii'))
+
+    @axis_check
+    @no_repeated_axis_check
+    def set_lower_travel_limit(self, *args: str, **kwargs: float):
+        """Set the specified axes upper travel limits to the current position
+        or to a specified position in [mm].
+
+        Note: the values written here will persist across power cycles and
+            adjust automatically such that the physical location remains
+            constant.
+
+        :param args: axes to specify the current position as lower limit.
+        :param kwargs: axes to specify input position as the lower limit.
+
+        ..code_block::
+            set_lower_travel_limit('x', 'y')  # current positions as limit OR
+            set_lower_travel_limit(x=50, y=4.0)  # specific positions as limit OR
+            set_lower_travel_limit('x', y=20.5)  # mix of both.
+        """
+        return self._set_cmd_curr_or_new_value(Cmds.SETLOW, *args, **kwargs)
+
+    @axis_check
+    def get_lower_travel_limit(self, *args: str):
+        """Get the specified axes travel limits as a dict.
+
+        Note: the returned value will adjust automatically such that the
+            physical location remains constant.
+        Note: dict keys for lettered axes are uppercase.
+        """
+        return self._get_axis_value(Cmds.SETLOW, *args)
+
+    @axis_check
+    def reset_lower_travel_limits(self, *args: str):
+        """Restore lower travel limit on specified axes to firmware defaults."""
+        return self._reset_setting(Cmds.SETLOW, *args)
+
+    @axis_check
+    @no_repeated_axis_check
+    def set_upper_travel_limit(self, *args: str, **kwargs: float):
+        """Set the specified axes upper travel limits to the current position
+        or to a specified position in [mm].
+
+        Note: the values written here will persist across power cycles and
+            adjust automatically such that the physical location remains
+            constant.
+
+        :param args: axes to specify the current position as lower limit.
+        :param kwargs: axes to specify input position as the lower limit.
+
+        ..code_block::
+            set_upper_travel_limit('x', 'y')  # current positions as limit OR
+            set_upper_travel_limit(x=50, y=4.0)  # specific positions as limit OR
+            set_upper_travel_limit('x', y=20.5)  # mix of both.
+        """
+        return self._set_cmd_curr_or_new_value(Cmds.SETUP, *args, **kwargs)
+
+    @axis_check
+    def get_upper_travel_limit(self, *args: str):
+        """Get the specified upper axes travel limits as a dict.
+
+        Note: the returned value will adjust automatically such that the
+            physical location remains constant.
+        Note: dict keys for lettered axes are uppercase.
+        """
+        return self._get_axis_value(Cmds.SETUP, *args)
+
+    @axis_check
+    def reset_upper_travel_limits(self, *args: str):
+        """Restore lower travel limit on specified axes to firmware defaults."""
+        return self._reset_setting(Cmds.SETUP, *args)
 
     @axis_check
     def set_axis_backlash(self, **kwargs: float):
@@ -131,8 +270,7 @@ class TigerController:
         """
         axes_str = ""
         # Order the args since the hardware reply arrives in a fixed order.
-        args = [arg.upper() for arg in args]
-        args = [ax for ax in self.ordered_axes if ax in args]
+        args = self._order_axes(args)
         # Fill out all args if none are populated.
         if not args:
             # Default to all lettered axes.
@@ -299,6 +437,34 @@ class TigerController:
         reply = self.send(cmd_str.encode('ascii'))
         # note: reply is not formatted to dict
         return self._reply_split(reply)
+
+    def _order_axes(self, axes: tuple[str]) -> list[str]:
+        """return axes in the order they are received in replies from tigerbox.
+        """
+        axes = [ax.upper() for ax in axes]
+        return [ax for ax in self.ordered_axes if ax in axes]
+
+    def _reset_setting(self, cmd: Cmds, *args):
+        """Reset a setting that takes an input query with specific syntax."""
+        curr_pos_str = " ".join([f"{a.upper()}-" for a in args])
+        cmd_str = f"{cmd.decode('utf8')} {curr_pos_str}\r"
+        self.send(cmd_str.encode('ascii'))
+
+    def _set_cmd_curr_or_new_value(self, cmd: Cmds, *args, **kwargs):
+        """Set a setting to the current or a specified value."""
+        curr_pos_str = " ".join([f"{a.upper()}+" for a in args])
+        set_pos_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
+        cmd_str = f"{cmd.decode('utf8')} {curr_pos_str} " \
+                  f"{set_pos_str}\r"
+        self.send(cmd_str.encode('ascii'))
+
+    def _get_axis_value(self, cmd: Cmds, *args):
+        """Get the value from one or more axes."""
+        axes_str = " ".join([f"{a.upper()}?" for a in args])
+        cmd_str = f"{cmd.decode('utf8')} {axes_str}\r"
+        reply = self.send(cmd_str.encode('ascii')).split()[1:]
+        axis_val_tuples = [c.split("=") for c in reply]
+        return {w[0].upper(): float(w[1]) for w in axis_val_tuples}
 
     @staticmethod
     def check_reply_for_errors(reply: str):
