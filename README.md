@@ -22,15 +22,15 @@ box.move_axes_relative(z=100) # Move z +100 stage units in the positive z direct
 ````
 
 ### Syntax Basics
-All commands that reference stage axes are optional.
+All commands that reference stage axes accept a variable, optional number of arguments.
 ````python
 box.zero_in_place('x')  # only zeros the x axis. Other axes are ignored.
 ````
-All commands that reference stage axes are case-insensitive
+Stage axes are also case-insensitive,
 ````python
 box.zero_in_place('X', 'y', 'Z')  # also ok
 ````
-and the order doesn't matter
+and the order doesn't matter.
 ````python
 box.zero_in_place('y', 'z', 'x')  # also ok 
 ````
@@ -38,9 +38,10 @@ box.zero_in_place('y', 'z', 'x')  # also ok
 All commands that query stage axes return a dict, keyed by *upper-case* stage axis.
 ````python
 box.get_position('x', 'z', 'y')
+# {'X': 100.0, 'Y': 305.0, 'Z': 10000.0}
 ````
 
-Some commands can take an axis setting to be "current value" and another axis setting witha specified value.
+Some commands can take an axis setting to be "current value" and another axis setting to be a specified value.
 The syntax for these commands look like this:
 ````python
 box.set_home('x', 'z', y=1000) # Set x and z axes homing location to current spot. Set y axis to specific spot.
