@@ -180,7 +180,7 @@ class TigerController:
     @axis_check
     @no_repeated_axis_check
     def set_lower_travel_limit(self, *args: str, **kwargs: float):
-        """Set the specified axes upper travel limits to the current position
+        """Set the specified axes lower travel limits to the current position
         or to a specified position in [mm].
 
         Note: the values written here will persist across power cycles and
@@ -222,8 +222,8 @@ class TigerController:
             adjust automatically such that the physical location remains
             constant.
 
-        :param args: axes to specify the current position as lower limit.
-        :param kwargs: axes to specify input position as the lower limit.
+        :param args: axes to specify the current position as upper limit.
+        :param kwargs: axes to specify input position as the upper limit.
 
         ..code_block::
             set_upper_travel_limit('x', 'y')  # current positions as limit OR
