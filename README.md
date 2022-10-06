@@ -45,6 +45,7 @@ Some commands can take an axis setting to be "current value" and another axis se
 The syntax for these commands look like this:
 ````python
 box.set_home('x', 'z', y=1000) # Set x and z axes homing location to current spot. Set y axis to specific spot.
+box.set_home('z', 'y', 'x', m=10000, n=20000) # variable number of arguments ok! order and case don't matter.
 ````
 
 ## Implementation Details
