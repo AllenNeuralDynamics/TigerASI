@@ -2,6 +2,7 @@
 """Connects to the Tiger Box, moves some axes, returns to starting pose."""
 
 from tigerasi.tiger_controller import TigerController
+from tigerasi.device_codes import ScanPattern
 import pprint
 import time
 
@@ -20,9 +21,17 @@ print("Test PM control of axis")
 tigerbox.pm(v=0)
 
 print("Test scan commands")
-tigerbox.scanr(x=0, y=1)
-tigerbox.scanv(x=0, y=0, z=1)
-tigerbox.scan()
+# Conduct one scan line of 100 tiles with the fast_axis in the z direction.
+start_z, start_y = (0,0)
+tile_count = 100
+tigerbox.scanr(scan_start_mm=start_z, pulse_interval_enc_ticks=32,
+               num_pixels=tile_count)
+tigerbox.scanv(scan_start_mm=start_y, scan_stop_mm=start_y, line_count=1)
+z_axis_id = tigerbox.get_axis_id("z")
+y_axis_id = tigerbox.get_axis_id("y")
+tigerbox.scan(fast_axis_id=z_axis_id, slow_axis_id=y_axis_id,
+              pattern=ScanPattern.RASTER)
+tigerbox.start_scan()
 
 print("Test PZINFO")
 print(tigerbox.get_pzinfo(card_address = "35"))
