@@ -46,7 +46,7 @@ class TigerController:
 
     # Constants
     BAUD_RATE = 115200
-    TIMEOUT = 1
+    TIMEOUT = 3
 
     def __init__(self, com_port: str):
         """Init. Creates serial port connection and connects to hardware.
@@ -607,11 +607,15 @@ class TigerController:
         self.ser.reset_input_buffer()
 
     # Low-Level Commands.
-    def send(self, cmd_str: str, wait_for_output=True, wait_for_reply=True):
+    def send(self, cmd_str: str, read_until: str = "\r\n",
+             wait_for_output=True, wait_for_reply=True):
         """Send a command; optionally wait for various conditions.
 
-        :param cmd_str: command string with parameters and terminated with '\r'
-            to send to the tiger controller.
+        :param cmd_str: command string with parameters and the proper line
+            termination (usually '\r') to send to the tiger controller.
+        :param read_until: the specific string to read until when reading back
+            the response. (Default is fine for Tiger-based devices, but some
+            filter wheels have a different response termination.)
         :param wait_for_output: wait until all outgoing bytes exit the PC.
         :param wait_for_reply: wait until at least one line has been read in
                                by the PC.
@@ -632,7 +636,8 @@ class TigerController:
         # FIXME: it is possible to overflow the buffer if we don't read enough.
         # Note: reading at least one reply out of the buffer costs ~0.01[s]
         while True:
-            reply = self.ser.read_until(b'\r\n').decode("utf8")
+            reply = \
+                self.ser.read_until(read_until.encode("ascii")).decode("utf8")
             self.log.debug(f"reply: {repr(reply)}")
             try:
                 self.check_reply_for_errors(reply)
