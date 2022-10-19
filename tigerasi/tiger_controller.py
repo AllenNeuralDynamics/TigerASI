@@ -11,6 +11,8 @@ UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
 
 def axis_check(func):
     """Ensure that the axis (specified as an arg or kwarg) exists."""
+
+    @wraps(func)  # Required for sphinx doc generation.
     def inner(self, *args, **kwargs):
         # Check if axes are specified in *args.
         # Otherwise, check axes specified in **kwargs.
@@ -46,7 +48,16 @@ class TigerController:
     BAUD_RATE = 115200
     TIMEOUT = 1
 
-    def __init__(self, com_port):
+    def __init__(self, com_port: str):
+        """Init. Creates serial port connection and connects to hardware.
+
+        :param com_port: serial com port.
+
+        .. code-block:: python
+
+            box = TigerController('COM4')
+
+        """
         self.ser = None
         self.log = logging.getLogger(__name__)
         self.skipped_replies = 0
@@ -79,9 +90,19 @@ class TigerController:
     @axis_check
     def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
-        """move the axes specified in kwargs by a relative amount.
+        """Move the axes specified in kwargs by a relative amount.
 
-        Note: Units are in tenths of microns."""
+        Note: Units are in tenths of microns.
+
+        :param kwargs: one or more axes specified by name where the value is
+            the relative position (in steps) to move to.
+
+        .. code-block:: python
+
+            box.move_axis_relative(x=10, y=20)  # Move 1 micron in x and 2 in y
+            box.move_axis_relative(z=100)  # Move 10 microns in z
+
+        """
         self._set_cmd_args_and_kwds(Cmds.MOVEREL, **kwargs,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
@@ -90,8 +111,15 @@ class TigerController:
     def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """move the axes specified in kwargs by the specified absolute amount
+        (in tenths of microns). Unspecified axes will not be moved.
 
-        Note: Units are in tenths of microns.
+        :param kwargs: one or more axes specified by name where the value is
+            the absolute position (in steps) to move to.
+
+        .. code-block:: python
+
+            box.move_axis_absolute(x=0, y=100)  # Move x and y axes to absolute location.
+
         """
         self._set_cmd_args_and_kwds(Cmds.MOVEABS, **kwargs,
                                     wait_for_output=wait_for_output,
@@ -164,7 +192,17 @@ class TigerController:
 
     @axis_check
     def zero_in_place(self, *args: str):
-        """Set the specified axes' current positions to zero."""
+        """Zero out the specified axes.
+        (i.e: Set the specified axes current location to zero.)
+
+        Note: the returned value will adjust automatically such that the
+            physical location remains constant.
+
+        .. code-block:: python
+
+            box.home_in_place('x', 'y')  # x and y axis' current locations are now zero.
+
+        """
         # TODO: what happens if we home a device with CLOCKED POSITIONS?
         axis_positions = {}
         if not args:
@@ -177,7 +215,18 @@ class TigerController:
     @axis_check
     def set_position(self, wait_for_output: bool = True,
                      wait_for_reply: bool = True, **kwargs: float):
-        """Set the specified axes to the specified positions."""
+        """Set the specified axes to the specified positions.
+        Similar to :meth:`home_in_place`, but axes' current location can be
+        specified to any location.
+
+        :param kwargs: one or more axes specified by name where the value is
+            the new absolute position (in steps).
+
+        .. code-block:: python
+
+            box.set_position(x=10, y=50)  # Current position is now (x=10, y=50).
+
+        """
         self._set_cmd_args_and_kwds(Cmds.HERE, **kwargs,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
@@ -199,7 +248,7 @@ class TigerController:
         :param wait_for_reply: wait until at least one line has been read in
                                by the PC.
 
-        ..code_block::
+        .. code-block:: python
             set_lower_travel_limit('x', 'y')  # current positions as limit OR
             set_lower_travel_limit(x=50, y=4.0)  # specific positions as limit OR
             set_lower_travel_limit('x', y=20.5)  # mix of both.
@@ -274,12 +323,37 @@ class TigerController:
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
 
-    @axis_check
-    def set_axis_backlash(self, wait_for_output: bool = True,
-                          wait_for_reply: bool = True, **kwargs):
-        """Set the backlash compensation value.
+    def set_position(self, **kwargs: float):
+        """Set the specified axes to the specified positions.
+        Similar to :meth:`home_in_place`, but axes' current location can be
+        specified to any location.
 
-        Note: clear backlash compensation by writing 0 to that axis.
+        :param kwargs: one or more axes specified by name where the value is
+            the new absolute position (in steps).
+
+        .. code-block:: python
+
+            box.set_position(x=10, y=50)  # Current position is now (x=10, y=50).
+
+        """
+        axes_str = ""
+        for axis, val in kwargs.items():
+            axes_str += f" {axis.upper()}={val}"
+        cmd_str = Cmds.HERE.decode('utf8') + axes_str + '\r'
+        self.send(cmd_str.encode('ascii'))
+
+    @axis_check
+    def set_axis_backlash(self, **kwargs: float):
+        """Set the backlash compensation value for one or more axes.
+        Clear (i.e: disable) backlash compensation by writing 0 to that axis.
+        A nonzero setting causes the corresponding axis to apply a backlash
+        compensation routine where the axis oversteps by the specified amount
+        such that the leadscrew is always being engaged from the same
+        direction. The result is that a move will take ~25 extra milliseconds
+        to complete.
+
+        :param kwargs: one or more axes specified by name where the value is
+            the absolute position (in steps) to move to.
         """
         self._set_cmd_args_and_kwds(Cmds.BACKLASH, **kwargs,
                                     wait_for_output=wait_for_output,
@@ -287,12 +361,19 @@ class TigerController:
 
     @axis_check
     def get_position(self, *args: str):
-        """return the controller's locations for non-numeric axes.
+        """Return the controller's locations for lettered (non-numeric) axes.
+        Note: filter wheel positions are not accessible this way.
 
-        returns: a dict keyed by uppercase lettered axis whose value is
-                 the position (float).
+        :param: one or more axes to request the current position from.
 
-        Note: filter wheels positions are not accessible this way.
+        :returns: a dict keyed by uppercase lettered axis whose value is
+            the position (float).
+
+        .. code-block:: python
+
+            box.get_position('x')  # returns: {'X': 10}
+            box.get_position('x', 'y')  # returns: {'X': 10, 'Y': 50}
+
         """
         axes_str = ""
         # Order the args since the hardware reply arrives in a fixed order.
@@ -312,7 +393,15 @@ class TigerController:
     @axis_check
     def set_speed(self, wait_for_output: bool = True,
                   wait_for_reply: bool = True, **kwargs: float):
-        """Set one or more axis speeds to a value in [mm/sec]."""
+        """Set one or more axis speeds to a value in [mm/sec].
+
+        :param kwargs: one or more axes specified by name where the value is
+            the speed in [mm/sec].
+
+        .. code-block:: python
+
+            box.set_speed(x=50.5)
+        """
         self._set_cmd_args_and_kwds(Cmds.SPEED, **kwargs,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
@@ -333,11 +422,32 @@ class TigerController:
         reply = self.send(cmd_str)
         return float(reply.split('=')[-1])
 
+    # TODO: consider making this function a hidden function that only gets
+    #  called when a particular tigerbox command needs an axis specified by id.
     @axis_check
-    def pm(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
-        """toggle internal or external device control.
+    def get_axis_id(self, axis: str):
+        """Get the hardware's axis id for a given axis.
 
-        Note: 0 (internal input) or 1 (external input)
+        Note: some methods require that the axis is specified by id.
+
+        :param axis: the axis of interest.
+        :return: the axis id of the specified axis.
+        """
+        cmd_str = Cmds.Z2B.decode('utf8') + f"{axis.upper()}?" + '\r'
+        reply = self.send(cmd_str.encode('ascii'))
+        return int(reply.split('=')[-1])
+
+    @axis_check
+    def pm(self, wait_for_output=True, wait_for_reply=True,
+           **kwargs: ControlMode):
+        """Set internal or external, open or closed loop, axis control.
+
+        Setting an axis to external control enables control from the external
+        TTL input port on the device hardware.
+
+        :param kwargs: one or more axes specified by key where the values are
+            :obj:`~tigerasi.device_codes.ControlMode` enums.
+
         """
         axes_str = ""
         for key, val in kwargs.items():
@@ -346,39 +456,144 @@ class TigerController:
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scanr(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
-        """setup the fast scanning axis."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCANR.value + axes_str + '\r'
+    def start_scan(self):
+        self.scan(ScanState.START)
+
+    def stop_scan(self):
+        self.scan(ScanState.STOP)
+
+    def scanr(self, scan_start_mm: float, scan_stop_mm: float = None,
+              pulse_interval_enc_ticks: int = 1, num_pixels: int = None,
+              retrace_speed: int = 67,
+              wait_for_output: bool = True, wait_for_reply: bool = True):
+        """Setup the fast scanning axis start position and distance OR start
+        position and number of pixels. To setup a scan, either scan_stop_mm
+        or num_pixels must be specified, but not both.
+
+        See ASI
+        `SCANR Implementation <http://asiimaging.com/docs/commands/scanr>`_
+        for more details.
+
+        :param scan_start_mm: absolute position to start the scan.
+        :param scan_stop_mm: absolute position to stop the scan. If
+            unspecified, num_pixels is required.
+        :param pulse_interval_enc_ticks: spacing (in encoder ticks) between
+            output pulses.
+            i.e: a pulse will output ever pulse_interval_enc_ticks.
+        :param num_pixels:  number of pixels to output a pulse for. If
+            unspecified, scan_stop_mm is required.
+        :param retrace_speed: percentage (0-100) of how fast to backtrack to
+            the scan start position after finishing a scan.
+        :param wait_for_output: whether to wait for the message to exit the pc.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
+        """
+        # We can specify scan_stop_mm or num_pixels but not both (i.e: XOR).
+        if not ((scan_stop_mm is None) ^ (num_pixels is None)):
+            raise SyntaxError("Exclusively either scan_stop_mm or num_pixels "
+                              "(i.e: one or the other, but not both) options "
+                              "must be specified.")
+        # Build parameter list.
+        scan_stop_str = f" Y={round(scan_stop, 4)}" if scan_stop else ""
+        num_pixels_str = f" F={pixels}" if num_pixels else ""
+        args_str = f" X={round(scan_start_mm, 4)}{scan_stop_str}" \
+                   f" Z={pulse_interval_enc_ticks}{num_pixels_str}" \
+                   f" R={retrace_speed}"
+        cmd_str = Cmds.SCANR.value + args_str + '\r'
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scanv(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
-        """setup the slow scanning axis."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCANV.value + axes_str + '\r'
+    def scanv(self, scan_start_mm: float, scan_stop_mm: float, line_count: int,
+              overshoot_time_ms: int = None, overshoot_factor: float = None,
+              wait_for_output=True, wait_for_reply=True):
+        """Setup the slow scanning axis.
+
+        Behavior is equivalent to:
+        :python:``numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)``.
+
+        See ASI
+        `SCANV Implementation <http://asiimaging.com/docs/commands/scanv>`_
+        for more details.
+
+        :param scan_start_mm: absolute position to start the scan in the slow
+            axis dimension.
+        :param scan_stop_mm: absolute position to stop the scan in the slow
+            axis dimension.
+        :param line_count: how many lines to scan on the slow axis.
+        :param overshoot_time_ms: extra time (in ms) for the stage to settle
+            (in addition to the current time set by the ``AC`` command.)
+        :param overshoot_factor: scalar multiplier (default: 1.0) to add
+            distance to the start and stop of a scan before initiating the
+            starting of pulses.
+        :param wait_for_output: whether to wait for the message to exit the pc.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
+        """
+        overshoot_time_str = f" F={overshoot_time_ms}" \
+            if overshoot_time_ms is not None else ""
+        overshoot_factor_str = f" T={round(overshoot_factor_mm, 4)}" \
+            if overshoot_factor_mm is not None else ""
+        args_str = f" X={round(scan_start_mm, 4)} Y={round(scan_stop_mm, 4)}" \
+                   f" Z={line_count}{overshoot_time_str}{overshoot_factor_str}"
+        cmd_str = Cmds.SCANV.value + args_str + '\r'
+        self.send(cmd_str.value, wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+
+    def scan(self, state: ScanState = None, fast_axis_id: str = None,
+             slow_axis_id: str = None, pattern: ScanPattern = None):
+        """start scan and define axes used for scanning.
+
+        Note: fast_axis and slow_axis are specified via 'axis id', which can
+            be queried with the
+            :meth:`~tiger_controller.TigerController.get_axis_id` query.
+
+        :param state: start or stop the scan depending on input scan
+            state.
+        :param fast_axis_id: the axis (specified via axis id) declared as the
+            fast-scan axis.
+        :param slow_axis_id: the axis (specified via axis id) declared as the
+            slow-scan axis.
+        :param pattern: Raster or Serpentine scan pattern.
+        """
+        scan_state_str = f" {state.value}" if state is not None else ""
+        fast_axis_str = f" Y={fast_axis}" if fast_axis is not None else ""
+        slow_axis_str = f" Z={slow_axis}" if slow_axis is not None else ""
+        pattern_str = f" F={pattern.value}" if pattern is not None else ""
+
+        cmd_str = Cmds.SCAN.value + scan_state_str + fast_axis_str \
+                  + slow_axis_str + pattern_str + '\r'
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def scan(self, wait_for_output=True, wait_for_reply=True, **kwargs: str):
-        """start scan and setup axes."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.SCAN.value + axes_str + '\r'
-        self.send(cmd_str, wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+    def ttl(self, in0_mode: int = None, out0_mode: int = None,
+            reverse_output_polarity: bool = False,
+            aux_io_state: int = None, aux_io_mask: int = None,
+            aux_io_mode: int = None,
+            wait_for_reply: bool = True, wait_for_output: bool = True):
+        """Setup ttl external IO modes or query state (no arguments).
 
-    def ttl(self, **kwargs: str):
-        """configure ttl modes."""
-        axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
-        cmd_str = Cmds.TTL.value + axes_str + '\r'
+        See `ASI TTL Implementation http://asiimaging.com/docs/commands/ttl`
+        for more details.
+
+        :param in0_mode: set TTL trigger mode when configured as input.
+        :param out0_mode:
+        :param reverse_output_polarity:
+        :param aux_io_state:
+        :param aux_io_mask:
+        :param aux_io_mode: Set what determines TTL value when set as outputs.
+        :param wait_for_output: whether to wait for the message to exit the pc.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
+        """
+        # TODO range checks.
+        in0_str = f" X={in0_mode}" if in0_mode is not None else ""
+        out0_str = f" Y={out0_mode}" if out0_mode is not None else ""
+        auxstate_str = f" Z={aux_io_state}" if aux_io_state is not None else ""
+        polarity_str = f" F={-1 if reverse_output_polarity else 1}" \
+            if reverse_output_polarity is not None else ""
+        auxmask_str = f" R={aux_io_mask}" if aux_io_mask is not None else ""
+        auxmode_str = f" T={aux_io_mode}" if aux_io_mode is not None else ""
+        # Aggregate specified params.
+        param_str = f"{in0_str}{out0_str}{auxstate_str}{polarity_str}" \
+                    f"{auxmask_str}{auxmode_str}"
+        cmd_str = Cmds.TTL.value + param_str + '\r'
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
@@ -442,12 +657,16 @@ class TigerController:
     def get_build_config(self):
         """return the configuration of the Tiger Controller.
 
-        returns: a dict that looks like:
+        :returns: a dict that looks like:
+
+        .. code-block:: python
+
             {'Axis Addr': [],
              'Axis Props': ['74', '10', '2', etc.], # these are positions
              'Axis Types': ['x', 'x', 'z', etc],
              'Hex Addr': [],
              'Motor Axes': ['X', 'Y', 'Z', etc]}
+
         """
         reply = self.send(f"{Cmds.BUILD_X.value}\r")
         # Reply is formatted in such a way that it can be put into dict form.

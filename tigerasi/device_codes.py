@@ -52,3 +52,23 @@ class ErrorCodes(Enum):
     FILTERWHEEL_RESERVED_20 = ':N-20'
     SERIAL_CMD_HALTED = ':N-21'
 
+
+class ScanState(Enum):
+    """Scan states"""
+    # http://asiimaging.com/docs/commands/scan
+    START = b'S'
+    STOP = b'P'
+    # More read-only scan states exist, but are not captured here.
+
+
+class ScanPattern(Enum):
+    """parameter for specifying scan pattern."""
+    RASTER = 0
+    SERPENTINE = 1
+
+
+class ControlMode(Enum):
+    INTERNAL_CLOSED_LOOP = 0
+    EXTERNAL_CLOSED_LOOP = 1
+    INTERNAL_OPEN_LOOP = 2
+    EXTERNAL_OPEN_LOOP = 3
