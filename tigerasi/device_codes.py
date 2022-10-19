@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """TigerController Device Codes"""
-from enum import StrEnum
+from enum import Enum
 
 
-class Cmds(StrEnum):
+class Cmds(Enum):
     # Common commands in bytes form.
     BUILD_X = "BU X"
     HALT = "\\"

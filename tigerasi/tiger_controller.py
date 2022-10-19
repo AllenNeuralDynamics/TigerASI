@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
-from functools import cache
+from functools import cache, wraps
 from .device_codes import *
 import logging
 
