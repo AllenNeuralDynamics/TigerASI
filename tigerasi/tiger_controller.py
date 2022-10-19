@@ -323,27 +323,9 @@ class TigerController:
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
 
-    def set_position(self, **kwargs: float):
-        """Set the specified axes to the specified positions.
-        Similar to :meth:`home_in_place`, but axes' current location can be
-        specified to any location.
-
-        :param kwargs: one or more axes specified by name where the value is
-            the new absolute position (in steps).
-
-        .. code-block:: python
-
-            box.set_position(x=10, y=50)  # Current position is now (x=10, y=50).
-
-        """
-        axes_str = ""
-        for axis, val in kwargs.items():
-            axes_str += f" {axis.upper()}={val}"
-        cmd_str = Cmds.HERE.decode('utf8') + axes_str + '\r'
-        self.send(cmd_str.encode('ascii'))
-
     @axis_check
-    def set_axis_backlash(self, **kwargs: float):
+    def set_axis_backlash(self, wait_for_output: bool = True,
+                          wait_for_reply: bool = True, **kwargs: float):
         """Set the backlash compensation value for one or more axes.
         Clear (i.e: disable) backlash compensation by writing 0 to that axis.
         A nonzero setting causes the corresponding axis to apply a backlash
@@ -352,6 +334,9 @@ class TigerController:
         direction. The result is that a move will take ~25 extra milliseconds
         to complete.
 
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+                               by the PC.
         :param kwargs: one or more axes specified by name where the value is
             the absolute position (in steps) to move to.
         """
@@ -433,7 +418,7 @@ class TigerController:
         :param axis: the axis of interest.
         :return: the axis id of the specified axis.
         """
-        cmd_str = Cmds.Z2B.decode('utf8') + f"{axis.upper()}?" + '\r'
+        cmd_str = Cmds.Z2B.value + f"{axis.upper()}?" + '\r'
         reply = self.send(cmd_str.encode('ascii'))
         return int(reply.split('=')[-1])
 
@@ -537,8 +522,11 @@ class TigerController:
         self.send(cmd_str.value, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
+    # TODO: consider making this function take in lettered axes and
+    #   converting to axis ids under the hood.
     def scan(self, state: ScanState = None, fast_axis_id: str = None,
-             slow_axis_id: str = None, pattern: ScanPattern = None):
+             slow_axis_id: str = None, pattern: ScanPattern = None,
+             wait_for_output: bool = True, wait_for_reply: bool = True):
         """start scan and define axes used for scanning.
 
         Note: fast_axis and slow_axis are specified via 'axis id', which can
@@ -552,10 +540,14 @@ class TigerController:
         :param slow_axis_id: the axis (specified via axis id) declared as the
             slow-scan axis.
         :param pattern: Raster or Serpentine scan pattern.
+        :param wait_for_output: whether to wait for the message to exit the pc.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
         """
         scan_state_str = f" {state.value}" if state is not None else ""
-        fast_axis_str = f" Y={fast_axis}" if fast_axis is not None else ""
-        slow_axis_str = f" Z={slow_axis}" if slow_axis is not None else ""
+        fast_axis_str = f" Y={fast_axis_id}" \
+            if fast_axis_id is not None else ""
+        slow_axis_str = f" Z={slow_axis_id}" \
+            if slow_axis_id is not None else ""
         pattern_str = f" F={pattern.value}" if pattern is not None else ""
 
         cmd_str = Cmds.SCAN.value + scan_state_str + fast_axis_str \
@@ -600,7 +592,7 @@ class TigerController:
     def is_moving(self):
         """blocks. True if any axes is moving. False otherwise."""
         # Send the inquiry.
-        reply = self.send(Cmds.STATUS.value).rstrip('\r\n')
+        reply = self.send(f"{Cmds.STATUS.value}\r").rstrip('\r\n')
         # interpret reply.
         if reply == "B":
             return True
@@ -624,7 +616,7 @@ class TigerController:
         :param wait_for_reply: wait until at least one line has been read in
                                by the PC.
         """
-        self.log.debug(f"sending: {cmd_str}")
+        self.log.debug(f"sending: {repr(cmd_str)}")
         self.ser.write(cmd_str.encode('ascii'))
         if wait_for_output:  # Wait for all bytes to exit the output buffer.
             while self.ser.out_waiting:
@@ -646,7 +638,7 @@ class TigerController:
                 self.check_reply_for_errors(reply)
             except SyntaxError as e:  # Technically, this could be a skipped reply.
                 self.log.error("Error occurred when sending: "
-                               f"{repr(cmd_bytestr)}")
+                               f"{repr(cmd_str)}")
                 raise
             if self.skipped_replies:
                 self.skipped_replies -= 1

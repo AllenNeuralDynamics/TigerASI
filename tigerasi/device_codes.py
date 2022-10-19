@@ -26,6 +26,7 @@ class Cmds(Enum):
     TTL = "TTL" # [X=IN0_mode] [Y=OUT0_mode] [Z=aux_IO_state] [F=OUT0_polarity] [R=aux_IO_mask] [T=aux_IO_mode]
     PM = "PM" # PM [axis]=[0 or 1] for mirror, [0 or 3] for ETL
     PZINFO = "PZINFO" # [card address]PZINFO
+    Z2B = "Z2B"  # Z2B Y? |or| Z2B Y=1 to set the axis id.
 
 
 class ErrorCodes(Enum):
