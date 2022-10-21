@@ -23,6 +23,7 @@ def axis_check(func):
             assert arg.upper() in self.axes, \
                 f"Error. Axis '{arg.upper()}' does not exist"
         return func(self, *args, **kwargs)
+
     return inner
 
 
@@ -53,7 +54,7 @@ class TigerController:
         # axis list as '0', '1' etc, so we remove them..
         self.ordered_filter_wheels = [fw for fw in self.ordered_axes if fw.isnumeric()]
         self.ordered_axes = [ax for ax in self.ordered_axes if not ax.isnumeric()]
-        #print(f"ordered axes are: {self.ordered_axes}")
+        # print(f"ordered axes are: {self.ordered_axes}")
         # Create O(1) lookup container.
         self.axes = set(self.ordered_axes)
 
@@ -226,8 +227,8 @@ class TigerController:
                               "(i.e: one or the other, but not both) options "
                               "must be specified.")
         # Build parameter list.
-        scan_stop_str = f" Y={round(scan_stop, 4)}" if scan_stop else ""
-        num_pixels_str = f" F={pixels}" if num_pixels else ""
+        scan_stop_str = f" Y={round(scan_stop_mm, 4)}" if scan_stop_mm else ""
+        num_pixels_str = f" F={num_pixels}" if num_pixels else ""
         args_str = f" X={round(scan_start_mm, 4)}{scan_stop_str}" \
                    f" Z={pulse_interval_enc_ticks}{num_pixels_str}" \
                    f" R={retrace_speed}"
@@ -261,8 +262,8 @@ class TigerController:
         """
         overshoot_time_str = f" F={overshoot_time_ms}" \
             if overshoot_time_ms is not None else ""
-        overshoot_factor_str = f" T={round(overshoot_factor_mm, 4)}" \
-            if overshoot_factor_mm is not None else ""
+        overshoot_factor_str = f" T={round(overshoot_time_ms, 4)}" \
+            if overshoot_time_ms is not None else ""
         args_str = f" X={round(scan_start_mm, 4)} Y={round(scan_stop_mm, 4)}" \
                    f" Z={line_count}{overshoot_time_str}{overshoot_factor_str}"
         cmd_str = Cmds.SCANV.decode('utf8') + args_str + '\r'
@@ -270,7 +271,8 @@ class TigerController:
                   wait_for_reply=wait_for_reply)
 
     def scan(self, state: ScanState = None, fast_axis_id: str = None,
-             slow_axis_id: str = None, pattern: ScanPattern = None):
+             slow_axis_id: str = None, pattern: ScanPattern = None,
+             wait_for_output=True, wait_for_reply=True):
         """start scan and define axes used for scanning.
 
         Note: fast_axis and slow_axis are specified via 'axis id', which can
@@ -284,13 +286,15 @@ class TigerController:
         :param slow_axis: the axis (specified via axis id) declared as the
             slow-scan axis.
         :param pattern: Raster or Serpentine scan pattern.
+        :param wait_for_output: whether to wait for the message to exit the pc.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
         """
         scan_state_str = f" {state.value}" if state is not None else ""
-        fast_axis_str = f" Y={fast_axis}" if fast_axis is not None else ""
-        slow_axis_str = f" Z={slow_axis}" if slow_axis is not None else ""
+        fast_axis_str = f" Y={fast_axis_id}" if fast_axis_id is not None else ""
+        slow_axis_str = f" Z={slow_axis_id}" if slow_axis_id is not None else ""
         pattern_str = f" F={pattern.value}" if pattern is not None else ""
 
-        cmd_str = Cmds.SCAN.decode('utf8') + scan_state_str + fast_axis_str\
+        cmd_str = Cmds.SCAN.decode('utf8') + scan_state_str + fast_axis_str \
                   + slow_axis_str + pattern_str + '\r'
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
@@ -347,7 +351,7 @@ class TigerController:
         self.ser.reset_input_buffer()
 
     # Low-Level Commands.
-    def send(self, cmd_bytestr : bytes, wait_for_output=True, wait_for_reply=True):
+    def send(self, cmd_bytestr: bytes, wait_for_output=True, wait_for_reply=True):
         """Send a command; optionally wait for various conditions.
 
         :param wait: wait until the serial port finishes sending the message.
@@ -361,7 +365,7 @@ class TigerController:
             while self.ser.out_waiting:
                 pass
         # If we do not wait for a reply, we must track how many replies to read later.
-        if not wait_for_reply :
+        if not wait_for_reply:
             self.skipped_replies += 1
             return
         # Every command issues a reply from the TigerController.
@@ -438,7 +442,7 @@ if __name__ == '__main__':
 
     box = TigerController("COM10")
 
-    TEST_TIME = 5 # seconds
+    TEST_TIME = 5  # seconds
     query_intervals = []
     print(f"running as many is_moving() queries in {TEST_TIME} seconds....")
     start_time = time.perf_counter()
@@ -448,5 +452,5 @@ if __name__ == '__main__':
         box.is_moving()
         fn_fin_time = time.perf_counter()
         query_intervals.append(fn_fin_time - fn_start_time)
-    avg_time = sum(query_intervals)/len(query_intervals)
+    avg_time = sum(query_intervals) / len(query_intervals)
     print(f"average_time per query: {avg_time:.3f}")
