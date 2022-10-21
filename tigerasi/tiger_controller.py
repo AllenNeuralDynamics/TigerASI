@@ -172,7 +172,7 @@ class TigerController:
     @axis_check
     def get_axis_id(self, axis: str):
         """Get the hardware's axis id for a given axis."""
-        cmd_str = Cmds.Z2B.decode('utf8') + f"{axis.upper()}?" + '\r'
+        cmd_str = Cmds.Z2B.decode('utf8') + f" {axis.upper()}?" + '\r'
         reply = self.send(cmd_str.encode('ascii'))
         return int(reply.split('=')[-1])
 
@@ -191,8 +191,11 @@ class TigerController:
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def start_scan(self):
-        self.scan(ScanState.START)
+    def start_scan(self, wait_for_output=True, wait_for_reply=True):
+        # self.scan(ScanState.START)
+        cmd_str = Cmds.SCAN.decode('utf8') + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
 
     def stop_scan(self):
         self.scan(ScanState.STOP)
@@ -233,6 +236,7 @@ class TigerController:
                    f" Z={pulse_interval_enc_ticks}{num_pixels_str}" \
                    f" R={retrace_speed}"
         cmd_str = Cmds.SCANR.decode('utf8') + args_str + '\r'
+        print(cmd_str)
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
@@ -267,6 +271,7 @@ class TigerController:
         args_str = f" X={round(scan_start_mm, 4)} Y={round(scan_stop_mm, 4)}" \
                    f" Z={line_count}{overshoot_time_str}{overshoot_factor_str}"
         cmd_str = Cmds.SCANV.decode('utf8') + args_str + '\r'
+        print(cmd_str)
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
@@ -296,6 +301,7 @@ class TigerController:
 
         cmd_str = Cmds.SCAN.decode('utf8') + scan_state_str + fast_axis_str \
                   + slow_axis_str + pattern_str + '\r'
+        print(cmd_str)
         self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 

@@ -24,10 +24,10 @@ tile_count = 1000
 tigerbox.scanr(scan_start_mm=start_z, pulse_interval_enc_ticks=32,
                num_pixels=tile_count)
 tigerbox.scanv(scan_start_mm=start_y, scan_stop_mm=start_y, line_count=1)
-# z_axis_id = tigerbox.get_axis_id("z")
-# y_axis_id = tigerbox.get_axis_id("y")
-# tigerbox.scan(fast_axis_id=z_axis_id, slow_axis_id=y_axis_id,
-#               pattern=ScanPattern.RASTER)
+x_axis_id = tigerbox.get_axis_id("x")
+y_axis_id = tigerbox.get_axis_id("y")
+tigerbox.scan(fast_axis_id=x_axis_id, slow_axis_id=y_axis_id,
+              pattern=ScanPattern.RASTER)
 tigerbox.start_scan()
 
 print("End of demo.")
