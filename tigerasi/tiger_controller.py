@@ -46,7 +46,7 @@ class TigerController:
 
     # Constants
     BAUD_RATE = 115200
-    TIMEOUT = 3
+    TIMEOUT = 1
 
     def __init__(self, com_port: str):
         """Init. Creates serial port connection and connects to hardware.
@@ -77,7 +77,7 @@ class TigerController:
         # axis list as '0', '1' etc, so we remove them..
         self.ordered_filter_wheels = [fw for fw in self.ordered_axes if fw.isnumeric()]
         self.ordered_axes = [ax for ax in self.ordered_axes if not ax.isnumeric()]
-        #print(f"ordered axes are: {self.ordered_axes}")
+        # print(f"ordered axes are: {self.ordered_axes}")
         # Create O(1) lookup container.
         self.axes = set(self.ordered_axes)
 
@@ -386,6 +386,7 @@ class TigerController:
         .. code-block:: python
 
             box.set_speed(x=50.5)
+
         """
         self._set_cmd_args_and_kwds(Cmds.SPEED, **kwargs,
                                     wait_for_output=wait_for_output,
@@ -435,14 +436,18 @@ class TigerController:
 
         """
         axes_str = ""
-        for key, val in kwargs.items():
-            axes_str += f" {key.upper()}={val}"
+        for axis, ctrl_mode in kwargs.items():
+            axes_str += f" {axis.upper()}={ctrl_mode.value}"
         cmd_str = Cmds.PM.value + axes_str + '\r'
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def start_scan(self):
-        self.scan(ScanState.START)
+    def start_scan(self, wait_for_output=True, wait_for_reply=True):
+        #TODO: Figure out how to make command below work
+        # self.scan(ScanState.START)
+        cmd_str = Cmds.SCAN.value + '\r'
+        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
 
     def stop_scan(self):
         self.scan(ScanState.STOP)
@@ -478,8 +483,8 @@ class TigerController:
                               "(i.e: one or the other, but not both) options "
                               "must be specified.")
         # Build parameter list.
-        scan_stop_str = f" Y={round(scan_stop, 4)}" if scan_stop else ""
-        num_pixels_str = f" F={pixels}" if num_pixels else ""
+        scan_stop_str = f" Y={round(scan_stop_mm, 4)}" if scan_stop_mm else ""
+        num_pixels_str = f" F={num_pixels}" if num_pixels else ""
         args_str = f" X={round(scan_start_mm, 4)}{scan_stop_str}" \
                    f" Z={pulse_interval_enc_ticks}{num_pixels_str}" \
                    f" R={retrace_speed}"
@@ -514,8 +519,8 @@ class TigerController:
         """
         overshoot_time_str = f" F={overshoot_time_ms}" \
             if overshoot_time_ms is not None else ""
-        overshoot_factor_str = f" T={round(overshoot_factor_mm, 4)}" \
-            if overshoot_factor_mm is not None else ""
+        overshoot_factor_str = f" T={round(overshoot_time_ms, 4)}" \
+            if overshoot_time_ms is not None else ""
         args_str = f" X={round(scan_start_mm, 4)} Y={round(scan_stop_mm, 4)}" \
                    f" Z={line_count}{overshoot_time_str}{overshoot_factor_str}"
         cmd_str = Cmds.SCANV.value + args_str + '\r'
@@ -526,7 +531,7 @@ class TigerController:
     #   converting to axis ids under the hood.
     def scan(self, state: ScanState = None, fast_axis_id: str = None,
              slow_axis_id: str = None, pattern: ScanPattern = None,
-             wait_for_output: bool = True, wait_for_reply: bool = True):
+             wait_for_output=True, wait_for_reply=True):
         """start scan and define axes used for scanning.
 
         Note: fast_axis and slow_axis are specified via 'axis id', which can
@@ -739,22 +744,3 @@ class TigerController:
                 dict_reply[words[0]] = val
         return dict_reply
 
-
-if __name__ == '__main__':
-    import pprint
-    import time
-
-    box = TigerController("COM10")
-
-    TEST_TIME = 5 # seconds
-    query_intervals = []
-    print(f"running as many is_moving() queries in {TEST_TIME} seconds....")
-    start_time = time.perf_counter()
-    while time.perf_counter() - start_time < TEST_TIME:
-        box.move_axes_relative(z=11)
-        fn_start_time = time.perf_counter()
-        box.is_moving()
-        fn_fin_time = time.perf_counter()
-        query_intervals.append(fn_fin_time - fn_start_time)
-    avg_time = sum(query_intervals)/len(query_intervals)
-    print(f"average_time per query: {avg_time:.3f}")
