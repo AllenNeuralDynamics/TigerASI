@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
-from functools import cache
+from functools import cache, wraps
 from .device_codes import *
 import logging
 
@@ -12,6 +12,7 @@ UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
 def axis_check(func):
     """Ensure that the axis (specified as an arg or kwarg) exists."""
 
+    @wraps(func)  # Required for sphinx doc generation.
     def inner(self, *args, **kwargs):
         # Check if axes are specified in *args.
         # Otherwise, check axes specified in **kwargs.
@@ -34,7 +35,16 @@ class TigerController:
     BAUD_RATE = 115200
     TIMEOUT = 1
 
-    def __init__(self, com_port):
+    def __init__(self, com_port: str):
+        """Init. Creates serial port connection and connects to hardware.
+
+        :param com_port: serial com port.
+
+        .. code-block:: python
+
+            box = TigerController('COM4')
+
+        """
         self.ser = None
         self.log = logging.getLogger(__name__)
         self.skipped_replies = 0
@@ -67,9 +77,19 @@ class TigerController:
     @axis_check
     def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
-        """move the axes specified in kwargs by a relative amount.
+        """Move the axes specified in kwargs by a relative amount.
 
-        Note: Units are in tenths of microns."""
+        Note: Units are in tenths of microns.
+
+        :param kwargs: one or more axes specified by name where the value is
+            the relative position (in steps) to move to.
+
+        .. code-block:: python
+
+            box.move_axis_relative(x=10, y=20)  # Move 1 micron in x and 2 in y
+            box.move_axis_relative(z=100)  # Move 10 microns in z
+
+        """
         axes_str = ""
         for key, val in kwargs.items():
             axes_str += f" {key.upper()}={val}"
@@ -80,7 +100,17 @@ class TigerController:
     @axis_check
     def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
-        """move the axes specified in kwargs by the specified absolute amount (in tenths of microns)."""
+        """move the axes specified in kwargs by the specified absolute amount
+        (in tenths of microns). Unspecified axes will not be moved.
+
+        :param kwargs: one or more axes specified by name where the value is
+            the absolute position (in steps) to move to.
+
+        .. code-block:: python
+
+            box.move_axis_absolute(x=0, y=100)  # Move x and y axes to absolute location.
+
+        """
         axes_str = ""
         for key, val in kwargs.items():
             axes_str += f" {key.upper()}={val}"
@@ -90,7 +120,14 @@ class TigerController:
 
     @axis_check
     def home_in_place(self, *args: str):
-        """Zero out the specified axes"""
+        """Zero out the specified axes.
+        (i.e: Set the specified axes current location to zero.)
+
+        .. code-block:: python
+
+            box.home_in_place('x', 'y')  # x and y axis' current locations are now zero.
+
+        """
         # TODO: what happens if we home a device with CLOCKED POSITIONS?
         axis_positions = {}
         if not args:
@@ -102,7 +139,18 @@ class TigerController:
 
     @axis_check
     def set_position(self, **kwargs: float):
-        """Set the specified axes to the specified positions."""
+        """Set the specified axes to the specified positions.
+        Similar to :meth:`home_in_place`, but axes' current location can be
+        specified to any location.
+
+        :param kwargs: one or more axes specified by name where the value is
+            the new absolute position (in steps).
+
+        .. code-block:: python
+
+            box.set_position(x=10, y=50)  # Current position is now (x=10, y=50).
+
+        """
         axes_str = ""
         for axis, val in kwargs.items():
             axes_str += f" {axis.upper()}={val}"
@@ -111,9 +159,16 @@ class TigerController:
 
     @axis_check
     def set_axis_backlash(self, **kwargs: float):
-        """Set the backlash compensation value.
+        """Set the backlash compensation value for one or more axes.
+        Clear (i.e: disable) backlash compensation by writing 0 to that axis.
+        A nonzero setting causes the corresponding axis to apply a backlash
+        compensation routine where the axis oversteps by the specified amount
+        such that the leadscrew is always being engaged from the same
+        direction. The result is that a move will take ~25 extra milliseconds
+        to complete.
 
-        Note: clear backlash compensation by writing 0 to that axis.
+        :param kwargs: one or more axes specified by name where the value is
+            the absolute position (in steps) to move to.
         """
         axes_str = ""
         for axis, val in kwargs.items():
@@ -123,12 +178,19 @@ class TigerController:
 
     @axis_check
     def get_position(self, *args: str):
-        """return the controller's locations for non-numeric axes.
+        """Return the controller's locations for lettered (non-numeric) axes.
+        Note: filter wheel positions are not accessible this way.
 
-        returns: a dict keyed by uppercase lettered axis who's value is
-                 the position (float).
+        :param: one or more axes to request the current position from.
 
-        Note: filter wheels positions are not accessible this way.
+        :returns: a dict keyed by uppercase lettered axis whose value is
+            the position (float).
+
+        .. code-block:: python
+
+            box.get_position('x')  # returns: {'X': 10}
+            box.get_position('x', 'y')  # returns: {'X': 10, 'Y': 50}
+
         """
         axes_str = ""
         # Fill out all args if none are populated.
@@ -145,7 +207,16 @@ class TigerController:
 
     @axis_check
     def set_speed(self, **kwargs: float):
-        """Set one or more axis speeds to a value in [mm/sec]."""
+        """Set one or more axis speeds to a value in [mm/sec].
+
+        :param kwargs: one or more axes specified by name where the value is
+            the speed in [mm/sec].
+
+        .. code-block:: python
+
+            box.set_speed(x=50.5)
+
+        """
         axes_str = ""
         for axis, speed in kwargs.items():
             axes_str += f" {axis.upper()}={round(speed, 4)}"
@@ -154,7 +225,15 @@ class TigerController:
 
     @axis_check
     def get_speed(self, axis: str):
-        """return the speed from the specified axis in [mm/sec]."""
+        """return the speed from the specified axis in [mm/sec].
+
+        :returns: the speed (float) in [mm/sec] of the specified axis.
+
+        .. code-block:: python
+
+            box.get_speed('x')  # returns: 50.5
+
+        """
         axis_str = f" {axis.upper()}?"
         cmd_str = Cmds.SPEED.decode('utf8') + axis_str + '\r'
         reply = self.send(cmd_str.encode('ascii'))
@@ -163,15 +242,27 @@ class TigerController:
     @axis_check
     @cache
     def get_encoder_ticks_per_mm(self, axis: str):
-        """Get <encoder ticks> / <mm of travel> for the specified axis."""
+        """Get <encoder ticks> / <mm of travel> for the specified axis.
+
+        :param axis: the axis of interest.
+        :return: encoder ticks per mm for the specified axis.
+        """
         axis_str = f" {axis.upper()}?"
         cmd_str = Cmds.CNTS.decode('utf8') + axis_str + '\r'
         reply = self.send(cmd_str.encode('ascii'))
         return float(reply.split('=')[-1])
 
+    # TODO: consider making this function a hidden function that only gets
+    #  called when a particular tigerbox command needs an axis specified by id.
     @axis_check
     def get_axis_id(self, axis: str):
-        """Get the hardware's axis id for a given axis."""
+        """Get the hardware's axis id for a given axis.
+
+        Note: some methods require that the axis is specified by id.
+
+        :param axis: the axis of interest.
+        :return: the axis id of the specified axis.
+        """
         cmd_str = Cmds.Z2B.decode('utf8') + f"{axis.upper()}?" + '\r'
         reply = self.send(cmd_str.encode('ascii'))
         return int(reply.split('=')[-1])
@@ -183,6 +274,10 @@ class TigerController:
 
         Setting an axis to external control enables control from the external
         TTL input port on the device hardware.
+
+        :param kwargs: one or more axes specified by key where the values are
+            :obj:`~tigerasi.device_codes.ControlMode` enums.
+
         """
         axes_str = ""
         for axis, ctrl_mode in kwargs.items():
@@ -205,7 +300,8 @@ class TigerController:
         position and number of pixels. To setup a scan, either scan_stop_mm
         or num_pixels must be specified, but not both.
 
-        See `ASI SCANR Implementation http://asiimaging.com/docs/commands/scanr`
+        See ASI
+        `SCANR Implementation <http://asiimaging.com/docs/commands/scanr>`_
         for more details.
 
         :param scan_start_mm: absolute position to start the scan.
@@ -242,9 +338,10 @@ class TigerController:
         """Setup the slow scanning axis.
 
         Behavior is equivalent to:
-        :python:`numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)`.
+        :python:``numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)``.
 
-        See `ASI SCANV Implementation http://asiimaging.com/docs/commands/scanv`
+        See ASI
+        `SCANV Implementation <http://asiimaging.com/docs/commands/scanv>`_
         for more details.
 
         :param scan_start_mm: absolute position to start the scan in the slow
@@ -253,7 +350,7 @@ class TigerController:
             axis dimension.
         :param line_count: how many lines to scan on the slow axis.
         :param overshoot_time_ms: extra time (in ms) for the stage to settle
-            (in addition to the current time set by the :code:`AC` command.)
+            (in addition to the current time set by the ``AC`` command.)
         :param overshoot_factor: scalar multiplier (default: 1.0) to add
             distance to the start and stop of a scan before initiating the
             starting of pulses.
@@ -281,9 +378,9 @@ class TigerController:
 
         :param state: start or stop the scan depending on input scan
             state.
-        :param fast_axis: the axis (specified via axis id) declared as the
+        :param fast_axis_id: the axis (specified via axis id) declared as the
             fast-scan axis.
-        :param slow_axis: the axis (specified via axis id) declared as the
+        :param slow_axis_id: the axis (specified via axis id) declared as the
             slow-scan axis.
         :param pattern: Raster or Serpentine scan pattern.
         :param wait_for_output: whether to wait for the message to exit the pc.
@@ -393,11 +490,16 @@ class TigerController:
         """return the configuration of the Tiger Controller.
 
         returns: a dict that looks like:
+
+
+        .. code-block:: python
+
             {'Axis Addr': [],
              'Axis Props': ['74', '10', '2', etc.], # these are positions
              'Axis Types': ['x', 'x', 'z', etc],
              'Hex Addr': [],
              'Motor Axes': ['X', 'Y', 'Z', etc]}
+
         """
         reply = self.send(Cmds.BUILD_X)
         # Reply is formatted in such a way that it can be put into dict form.
