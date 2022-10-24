@@ -15,8 +15,8 @@ release = '0.0.1'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    "sphinx.ext.autodoc",
-    "sphinx.ext.napoleon",
+    "sphinx.ext.autodoc",  # enable doc generation from code docstrings.
+    "sphinx.ext.napoleon",  # enable numpy and google style docstring parsing.
 ]
 
 templates_path = ['_templates']

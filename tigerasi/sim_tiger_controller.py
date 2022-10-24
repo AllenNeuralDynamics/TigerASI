@@ -52,7 +52,7 @@ class TigerController:
         # TODO; add some sleeping here.
 
     @axis_check
-    def home_in_place(self, *args: str):
+    def zero_in_place(self, *args: str):
         """Zero out the specified axes"""
         axis_positions = {}
         if not args:
@@ -95,7 +95,8 @@ class TigerController:
         return False
 
     # Low-Level Commands.
-    def send(self, cmd_bytestr : bytes, wait_for_output=True, wait_for_reply=True):
+    def send(self, cmd_str : str, read_until: str = "\r\n",
+             wait_for_output=True, wait_for_reply=True):
         """Send a command; optionally wait for various conditions.
 
         param wait: wait until the serial port finishes sending the message.
