@@ -22,5 +22,5 @@ setuptools.setup(
         "Operating System :: POSIX :: Linux",
     ],
     python_requires='>=3.9',
-    install_requires=[]
+    install_requires=['pyserial']
 )
