@@ -531,7 +531,7 @@ class TigerController:
     #   converting to axis ids under the hood.
     def scan(self, state: ScanState = None, fast_axis_id: str = None,
              slow_axis_id: str = None, pattern: ScanPattern = None,
-             wait_for_output=True, wait_for_reply=True):
+             wait_for_output: bool = True, wait_for_reply: bool = True):
         """start scan and define axes used for scanning.
 
         Note: fast_axis and slow_axis are specified via 'axis id', which can
