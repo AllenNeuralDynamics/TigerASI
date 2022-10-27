@@ -16,6 +16,8 @@ class Cmds(Enum):
     WHERE = "W"  # [axis] [axis]
     BACKLASH = "B" # [axis]=0 [axis]=0
     CNTS = "CNTS" # [axis]?
+    J = "J"  # Joystick
+    JS = "JS"  # Joystick
     SCAN = "SCAN" # [X?] [Y=fast_axis_id, default X] [Z=slow_axis_id, default Y] [F=pattern]
     SCANR = "SCANR" # fast_axis [X=start in mm] [Y=stop in mm] [Z=enc_divide] [F= #_pixels] [R=retrace_speed]
     SCANV = "SCANV" # slow_axis [X=start in mm] [Y=stop in mm] [Z=number_of_lines] [F=overshoot_time in ms] [T=scan_overshoot]
@@ -52,6 +54,24 @@ class ErrorCodes(Enum):
     FILTERWHEEL_RESERVED_19 = ':N-19'
     FILTERWHEEL_RESERVED_20 = ':N-20'
     SERIAL_CMD_HALTED = ':N-21'
+
+
+class JoystickInput(Enum):
+    NONE = 0
+    DEFAULT = 1
+    JOYSTICK_X = 2  # default for x axis
+    JOYSTICK_Y = 3  # default for y axis
+    CONTROL_KNOB = 4  # default for z axis
+    X_WHEEL = 5
+    Y_WHEEL = 6
+    ADC_CH1 = 7
+    FOOTSWITCH = 8
+    JX_X_WHEEL_COMBO = 9
+    JY_Y_WHEEL_COMBO = 10
+    CRIFF_KNOB = 11
+    Z_WHEEL = 22
+    F_WHEEL = 23
+
 
 
 class ScanState(Enum):

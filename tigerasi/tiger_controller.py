@@ -2,6 +2,7 @@
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
 from functools import cache, wraps
+from typing import Union
 from .device_codes import *
 import logging
 
@@ -29,6 +30,8 @@ def axis_check(func):
 
 def no_repeated_axis_check(func):
     """Ensure that an axis was specified either as an arg xor as a kwarg."""
+
+    @wraps(func)  # Required for sphinx doc generation.
     def inner(self, *args, **kwargs):
         # Figure out if any axes was specified twice.
         intersection = {a.upper() for a in args} & \
@@ -133,9 +136,9 @@ class TigerController:
         a hardware stage limit is reached.
 
         Note: Because the homing procedure may either reach the specified
-            software limit or a hardware limit, it is not safe to assume that
-            a stage axis is in the prespecified homing position upon finishing
-            this routine.
+        software limit or a hardware limit, it is not safe to assume that
+        a stage axis is in the prespecified homing position upon finishing
+        this routine.
         """
         self._set_cmd_args_and_kwds(self.HOME, *args,
                                     wait_for_output=wait_for_output,
@@ -148,19 +151,20 @@ class TigerController:
         """Set the current or specified position to home to in [mm].
 
         Note: the values written here will persist across power cycles and
-            adjust automatically such that the physical location remains
-            constant.
+        adjust automatically such that the physical location remains constant.
 
         :param args: axes for which to specify the current position as home.
         :param kwargs: axes for which to specify a particular position as home.
         :param wait_for_output: wait until all outgoing bytes exit the PC.
         :param wait_for_reply: wait until at least one line has been read in
-                               by the PC.
+            by the PC.
 
-        ..code_block::
-            set_home('x', 'y', 'z')  # current position set as home OR
-            set_home(x=100, y=20.5, z=0)  # specific positions for home OR
-            set_home('x', y=20.5)  # mix of both.
+        .. code-block:: python
+
+            box.set_home('x', 'y', 'z')  # current position set as home OR
+            box.set_home(x=100, y=20.5, z=0)  # specific positions for home OR
+            box.set_home('x', y=20.5)  # mix of both.
+
         """
         args = [f"{ax}+" for ax in args]
         return self._set_cmd_args_and_kwds(Cmds.SETHOME, *args, **kwargs,
@@ -181,13 +185,16 @@ class TigerController:
 
     @axis_check
     def get_home(self, *args: str):
-        """Return the position to home to in [mm] for the specified axes.
+        """Return the position to home to in [mm] for the specified axes or all
+        axes if none are specified.
 
         Note: the returned value will adjust automatically such that the
             physical location remains constant.
 
         :param args: the axes to get the machine frame home value for.
         """
+        if not args:
+            args = self.ordered_axes
         return self._get_axis_value(Cmds.SETHOME, *args)
 
     @axis_check
@@ -249,9 +256,11 @@ class TigerController:
                                by the PC.
 
         .. code-block:: python
-            set_lower_travel_limit('x', 'y')  # current positions as limit OR
-            set_lower_travel_limit(x=50, y=4.0)  # specific positions as limit OR
-            set_lower_travel_limit('x', y=20.5)  # mix of both.
+
+            box.set_lower_travel_limit('x', 'y')  # current positions as limit OR
+            box.set_lower_travel_limit(x=50, y=4.0)  # specific positions as limit OR
+            box.set_lower_travel_limit('x', y=20.5)  # mix of both.
+
         """
         args = [f"{ax}+" for ax in args]
         return self._set_cmd_args_and_kwds(Cmds.SETLOW, *args, **kwargs,
@@ -263,7 +272,8 @@ class TigerController:
         """Get the specified axes travel limits as a dict.
 
         Note: the returned value will adjust automatically such that the
-            physical location remains constant.
+        physical location remains constant.
+
         Note: dict keys for lettered axes are uppercase.
         """
         return self._get_axis_value(Cmds.SETLOW, *args)
@@ -285,19 +295,21 @@ class TigerController:
         or to a specified position in [mm].
 
         Note: the values written here will persist across power cycles and
-            adjust automatically such that the physical location remains
-            constant.
+        adjust automatically such that the physical location remains
+        constant.
 
         :param args: axes to specify the current position as upper limit.
         :param kwargs: axes to specify input position as the upper limit.
         :param wait_for_output: wait until all outgoing bytes exit the PC.
         :param wait_for_reply: wait until at least one line has been read in
-                               by the PC.
+            by the PC.
 
         ..code_block::
-            set_upper_travel_limit('x', 'y')  # current positions as limit OR
-            set_upper_travel_limit(x=50, y=4.0)  # specific positions as limit OR
-            set_upper_travel_limit('x', y=20.5)  # mix of both.
+
+            box.set_upper_travel_limit('x', 'y')  # current positions as limit OR
+            box.set_upper_travel_limit(x=50, y=4.0)  # specific positions as limit OR
+            box.set_upper_travel_limit('x', y=20.5)  # mix of both.
+
         """
         args = [f"{ax}+" for ax in args]
         return self._set_cmd_args_and_kwds(Cmds.SETUP, *args, **kwargs,
@@ -309,7 +321,8 @@ class TigerController:
         """Get the specified upper axes travel limits as a dict.
 
         Note: the returned value will adjust automatically such that the
-            physical location remains constant.
+        physical location remains constant.
+
         Note: dict keys for lettered axes are uppercase.
         """
         return self._get_axis_value(Cmds.SETUP, *args)
@@ -336,7 +349,7 @@ class TigerController:
 
         :param wait_for_output: wait until all outgoing bytes exit the PC.
         :param wait_for_reply: wait until at least one line has been read in
-                               by the PC.
+            by the PC.
         :param kwargs: one or more axes specified by name where the value is
             the absolute position (in steps) to move to.
         """
@@ -385,7 +398,7 @@ class TigerController:
 
         .. code-block:: python
 
-            box.set_speed(x=50.5)
+            box.set_speed(x=50.5, y=10)
 
         """
         self._set_cmd_args_and_kwds(Cmds.SPEED, **kwargs,
@@ -394,15 +407,93 @@ class TigerController:
 
     # TODO: needs testing.
     @axis_check
-    def get_speed(self, *args):
-        """return the speed from the specified axis in [mm/sec]."""
+    def get_speed(self, *args: str):
+        """return the speed from the specified axis in [mm/s] or all axes if
+        none are specified.
+
+        :param args: one or more lettered axes (case insensitive).
+        :return: speed of requested axes in dict form (upper case).
+
+        .. code-block:: python
+
+            box.get_speed('x', 'z')  # returns: {'X': 50.5, 'Y': 10}
+
+        """
         return self._get_axis_value(Cmds.SPEED, *args)
+
+    @axis_check
+    def bind_axis_to_joystick_input(self, **kwargs: JoystickInput):
+        """Map a tiger axis to a joystick input.
+
+        Note: binding a tigerbox stage axis to a joystick input does not affect
+        the direction of the input. To change the direction, you must use the
+        physical DIP switches on the back of the Tigerbox card.
+
+        :param kwargs: one or more (case-insensitive) axes where the values are
+            :obj:`~tigerasi.device_codes.JoystickInput` enums.
+
+        .. code-block:: python
+
+            from tigerasi.device_codes import JoystickInput
+
+            box.bind_axis_to_joystick(x=JoystickInput.Y,
+                                      y=JoystickInput.CONTROL_KNOB)
+
+        """
+        kwargs = {x: js_input.value for x, js_input in kwargs.items()}
+        self._set_cmd_args_and_kwds(Cmds.J, **kwargs)
+
+    @axis_check
+    def get_joystick_axis_mapping(self, *args):
+        """Get the axis mapping currently set on the joystick for the requested
+            axes (or all if none are requested)
+
+        :return: a dict, keyed by (upper-case) axis, who's values are of type
+            :obj:`~tigerasi.device_codes.JoystickInput` representing the
+            assigned joystick input.
+        """
+        if not args:
+            args = self.ordered_axes
+        return self._get_axis_value(Cmds.J, *args)
+
+    @axis_check
+    def enable_joystick_inputs(self, *args):
+        """Enable specified (or all if none are specified) axis control through
+        the joystick.
+
+        :param args: one or more axes to re-enable joystick control for (or all
+            if none are specified).
+
+        .. code-block:: python
+
+            box.enable_joystick_inputs('y')  # Enable joystick control of y axis.
+            box.enable_joystick_inputs()  # Enable joystick control of all axes.
+
+        """
+        if not args:
+            args = self.ordered_axes
+        enabled_axes = {x.upper(): '+' for x in args}
+        return self._set_cmd_args_and_kwds(Cmds.JS, **enabled_axes)
+
+    @axis_check
+    def disable_joystick_inputs(self, *args):
+        """Disable specified (or all if none are specified) axis control
+        through the joystick.
+
+        :param args: one or more axes to disable joystick control for (or all
+            if none are specified).
+        """
+        if not args:
+            args = self.ordered_axes
+        enabled_axes = {x.upper(): '-' for x in args}
+        return self._set_cmd_args_and_kwds(Cmds.JS, **enabled_axes)
 
     @axis_check
     @cache
     def get_encoder_ticks_per_mm(self, axis: str):
         """Get <encoder ticks> / <mm of travel> for the specified axis."""
         # TODO: can this function accept an arbitrary number of args?
+        # FIXME: use _get_axis_value
         axis_str = f" {axis.upper()}?"
         cmd_str = Cmds.CNTS.value + axis_str + '\r'
         reply = self.send(cmd_str)
@@ -433,7 +524,6 @@ class TigerController:
 
         :param kwargs: one or more axes specified by key where the values are
             :obj:`~tigerasi.device_codes.ControlMode` enums.
-
         """
         axes_str = ""
         for axis, ctrl_mode in kwargs.items():
@@ -535,8 +625,8 @@ class TigerController:
         """start scan and define axes used for scanning.
 
         Note: fast_axis and slow_axis are specified via 'axis id', which can
-            be queried with the
-            :meth:`~tiger_controller.TigerController.get_axis_id` query.
+        be queried with the
+        :meth:`get_axis_id` query.
 
         :param state: start or stop the scan depending on input scan
             state.
@@ -623,7 +713,7 @@ class TigerController:
             filter wheels have a different response termination.)
         :param wait_for_output: wait until all outgoing bytes exit the PC.
         :param wait_for_reply: wait until at least one line has been read in
-                               by the PC.
+            by the PC.
         """
         self.log.debug(f"sending: {repr(cmd_str)}")
         self.ser.write(cmd_str.encode('ascii'))
@@ -659,7 +749,7 @@ class TigerController:
     def get_build_config(self):
         """return the configuration of the Tiger Controller.
 
-        :returns: a dict that looks like:
+        :return: a dict that looks like:
 
         .. code-block:: python
 
@@ -677,7 +767,7 @@ class TigerController:
     def get_pzinfo(self, card_address):
         """return the configuration of the specified card.
 
-        returns: a dict
+        :return: a dict
         """
         cmd_str = str(card_address) + Cmds.PZINFO.value + '\r'
         reply = self.send(cmd_str)
@@ -700,13 +790,16 @@ class TigerController:
 
     def _set_cmd_args_and_kwds(self, cmd: Cmds, *args: str,
                                wait_for_output: bool = True,
-                               wait_for_reply: bool = True, **kwargs: float):
+                               wait_for_reply: bool = True,
+                               **kwargs: Union[float, int]):
         """Flag a parameter or set a parameter with a specified value.
 
-        ..code::
-            _set_cmd_args_and_kwds(Cmds.SETHOME, 'x', 'y', 'z')
-            _set_cmd_args_and_kwds(Cmds.SETHOME, 'x', y=10, z=20.5)
-            _set_cmd_args_and_kwds(Cmds.SETHOME, y=10, z=20.5)
+        .. code-block:: python
+
+            box._set_cmd_args_and_kwds(Cmds.SETHOME, 'x', 'y', 'z')
+            box._set_cmd_args_and_kwds(Cmds.SETHOME, 'x', y=10, z=20.5)
+            box._set_cmd_args_and_kwds(Cmds.SETHOME, y=10, z=20.5)
+
         """
         args_str = " ".join([f"{a.upper()}" for a in args])
         kwds_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
@@ -714,8 +807,14 @@ class TigerController:
         return self.send(cmd_str, wait_for_output=wait_for_output,
                          wait_for_reply=wait_for_reply)
 
-    def _get_axis_value(self, cmd: Cmds, *args):
-        """Get the value from one or more axes."""
+    def _get_axis_value(self, cmd: Cmds, *args: str):
+        """Get the value from one or more axes.
+        This function creates a query string (ex: ``'HM X? Y?\r'``), sends it
+        to the tigerbox, and returns the reply in dict form.
+
+        :param cmd: a tigerbox command
+        :param args: one or more axis names (case-insensitive)
+        """
         axes_str = " ".join([f"{a.upper()}?" for a in args])
         cmd_str = f"{cmd.value} {axes_str}\r"
         reply = self.send(cmd_str).split()[1:]  # Trim the acknowledgement part
