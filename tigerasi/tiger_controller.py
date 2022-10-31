@@ -709,7 +709,10 @@ class TigerController:
             _set_cmd_args_and_kwds(Cmds.SETHOME, y=10, z=20.5)
         """
         args_str = " ".join([f"{a.upper()}" for a in args])
-        kwds_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
+        # TODO: can we send other kwargs as non-floats?
+        # TODO: are all float values sent in units of mm?
+        kwds_str = " ".join([f"{a.upper()}={round(v, 4)}"
+                             for a, v in kwargs.items()])
         cmd_str = f"{cmd.value} {args_str} {kwds_str}\r"
         return self.send(cmd_str, wait_for_output=wait_for_output,
                          wait_for_reply=wait_for_reply)
