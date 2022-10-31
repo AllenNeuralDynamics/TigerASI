@@ -272,7 +272,10 @@ class TigerController:
     def reset_lower_travel_limits(self, *args: str,
                                   wait_for_output: bool = True,
                                   wait_for_reply: bool = True):
-        """Restore lower travel limit on specified axes to firmware defaults."""
+        """Restore lower travel limit on specified axes (or all if none are
+        specified) to firmware defaults."""
+        if not args:
+            args = self.ordered_axes
         return self._reset_setting(Cmds.SETLOW, *args,
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
@@ -318,7 +321,10 @@ class TigerController:
     def reset_upper_travel_limits(self, *args: str,
                                   wait_for_output: bool = True,
                                   wait_for_reply: bool = True):
-        """Restore lower travel limit on specified axes to firmware defaults."""
+        """Restore upper travel limit on specified axes (or all axes if none
+         are specified) to firmware defaults."""
+        if not args:
+            args = self.ordered_axes
         return self._reset_setting(Cmds.SETUP, *args,
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
