@@ -3,6 +3,7 @@
 from serial import Serial, SerialException
 from functools import cache, wraps
 from .device_codes import *
+from typing import Union
 import logging
 
 # Constants
@@ -254,13 +255,15 @@ class TigerController:
             set_lower_travel_limit('x', y=20.5)  # mix of both.
         """
         args = [f"{ax}+" for ax in args]
+        # Round axes values in mm to 4 decimal places.
+        kwargs = {x: round(v, 4) for x, v in kwargs.items()}
         return self._set_cmd_args_and_kwds(Cmds.SETLOW, *args, **kwargs,
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
     @axis_check
     def get_lower_travel_limit(self, *args: str):
-        """Get the specified axes travel limits as a dict.
+        """Get the specified axes' lower travel limits in [mm] as a dict.
 
         Note: the returned value will adjust automatically such that the
             physical location remains constant.
@@ -300,13 +303,15 @@ class TigerController:
             set_upper_travel_limit('x', y=20.5)  # mix of both.
         """
         args = [f"{ax}+" for ax in args]
+        # Round axes values in mm to 4 decimal places.
+        kwargs = {x: round(v, 4) for x, v in kwargs.items()}
         return self._set_cmd_args_and_kwds(Cmds.SETUP, *args, **kwargs,
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
     @axis_check
     def get_upper_travel_limit(self, *args: str):
-        """Get the specified upper axes travel limits as a dict.
+        """Get the specified axes' upper travel limits in [mm] as a dict.
 
         Note: the returned value will adjust automatically such that the
             physical location remains constant.
@@ -700,7 +705,8 @@ class TigerController:
 
     def _set_cmd_args_and_kwds(self, cmd: Cmds, *args: str,
                                wait_for_output: bool = True,
-                               wait_for_reply: bool = True, **kwargs: float):
+                               wait_for_reply: bool = True,
+                               **kwargs: Union[float, int]):
         """Flag a parameter or set a parameter with a specified value.
 
         ..code::
@@ -709,10 +715,7 @@ class TigerController:
             _set_cmd_args_and_kwds(Cmds.SETHOME, y=10, z=20.5)
         """
         args_str = " ".join([f"{a.upper()}" for a in args])
-        # TODO: can we send other kwargs as non-floats?
-        # TODO: are all float values sent in units of mm?
-        kwds_str = " ".join([f"{a.upper()}={round(v, 4)}"
-                             for a, v in kwargs.items()])
+        kwds_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
         cmd_str = f"{cmd.value} {args_str} {kwds_str}\r"
         return self.send(cmd_str, wait_for_output=wait_for_output,
                          wait_for_reply=wait_for_reply)
