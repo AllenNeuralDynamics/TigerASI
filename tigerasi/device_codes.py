@@ -73,7 +73,6 @@ class JoystickInput(Enum):
     F_WHEEL = 23
 
 
-
 class ScanState(Enum):
     """Scan states"""
     # http://asiimaging.com/docs/commands/scan

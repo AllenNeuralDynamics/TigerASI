@@ -429,6 +429,9 @@ class TigerController:
         the direction of the input. To change the direction, you must use the
         physical DIP switches on the back of the Tigerbox card.
 
+        Note: binding a tigerbox stage axis to a joystick input `also` enables
+        it.
+
         :param kwargs: one or more (case-insensitive) axes where the values are
             :obj:`~tigerasi.device_codes.JoystickInput` enums.
 
@@ -454,7 +457,9 @@ class TigerController:
         """
         if not args:
             args = self.ordered_axes
-        return self._get_axis_value(Cmds.J, *args)
+        raw_dict = self._get_axis_value(Cmds.J, *args)
+        # Convert the reply codes (ints) to JoystickInput enums.
+        return {x: JoystickInput(value) for x, value in raw_dict.items()}
 
     @axis_check
     def enable_joystick_inputs(self, *args):
