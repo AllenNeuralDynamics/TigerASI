@@ -472,8 +472,8 @@ class TigerController:
         """
         if not args:
             args = self.ordered_axes
-        enabled_axes = {x.upper(): '+' for x in args}
-        return self._set_cmd_args_and_kwds(Cmds.JS, **enabled_axes)
+        enabled_axes = [f"{x.upper()}+" for x in args]
+        return self._set_cmd_args_and_kwds(Cmds.J, *enabled_axes)
 
     @axis_check
     def disable_joystick_inputs(self, *args):
@@ -485,8 +485,8 @@ class TigerController:
         """
         if not args:
             args = self.ordered_axes
-        enabled_axes = {x.upper(): '-' for x in args}
-        return self._set_cmd_args_and_kwds(Cmds.JS, **enabled_axes)
+        disabled_axes = [f"{x.upper()}-" for x in args]
+        return self._set_cmd_args_and_kwds(Cmds.J, *disabled_axes)
 
     @axis_check
     @cache
