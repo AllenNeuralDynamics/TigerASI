@@ -75,7 +75,9 @@ class TigerController:
             raise
 
         # Get the lettered axes in hardware order: ['X', 'Y', 'Z', ...].
-        self.ordered_axes = self.get_build_config()['Motor Axes']
+        build_config = self.get_build_config()
+        self.ordered_axes = build_config['Motor Axes']
+        self.axis_to_card = self._get_axis_to_card_mapping(build_config)
         ## FW-1000 filter wheels have their own command set but show up in
         # axis list as '0', '1' etc, so we remove them..
         self.ordered_filter_wheels = [fw for fw in self.ordered_axes if fw.isnumeric()]
@@ -462,6 +464,26 @@ class TigerController:
         return {x: JoystickInput(value) for x, value in raw_dict.items()}
 
     @axis_check
+    def set_joystick_axis_polarity(self, **kwargs: JoystickPolarity):
+        """Set the joystick polarity of the axes specified.
+
+        .. code-block:: python
+
+            box.set_joystick_polarity(x=JoystickPolarity.DEFAULT,
+                                      y=JoystickPolarity.INVERTED)
+
+        """
+        # Get axis mapping
+        for axis_name, polarity in kwargs.items():
+            # TODO: sanitize input within axis_check so we don't have to call 'upper'
+            card_address, card_index = self.axis_to_card[axis_name.upper()]
+            ccaz_value = 22 + polarity.value + card_index*2
+            msg = f"{card_address}{Cmds.CCA.value} Z={ccaz_value}\r"
+            self.send(msg)
+        # Re-enable joystick inputs for the command to take effect.
+        self.enable_joystick_inputs(*kwargs.keys())
+
+    @axis_check
     def enable_joystick_inputs(self, *args):
         """Enable specified (or all if none are specified) axis control through
         the joystick.
@@ -768,6 +790,29 @@ class TigerController:
         reply = self.send(f"{Cmds.BUILD_X.value}\r")
         # Reply is formatted in such a way that it can be put into dict form.
         return self._reply_to_dict(reply)
+
+    @staticmethod
+    def _get_axis_to_card_mapping(build_config: dict):
+        """parse a build configuration dict to get axis-to-card relationship.
+
+        :return: a dict that looks like
+            ``{<axis>: (<hex_address>, <card_index)), etc.}``
+
+        .. code-block:: python
+
+            # return type looks like:
+            {'X': (31, 0),
+             'Y': (31, 1)}
+
+        """
+        axis_to_card = {}
+        curr_card_index = {c: 0 for c in set(build_config['Hex Addr'])}
+        for axis, hex_addr in zip(build_config['Motor Axes'],
+                                  build_config['Hex Addr']):
+            card_index = curr_card_index[hex_addr]
+            axis_to_card[axis] = (hex_addr, card_index)
+            curr_card_index[hex_addr] = card_index + 1
+        return axis_to_card
 
     def get_pzinfo(self, card_address):
         """return the configuration of the specified card.

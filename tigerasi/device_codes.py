@@ -6,6 +6,7 @@ from enum import Enum
 class Cmds(Enum):
     # Common commands in bytes form.
     BUILD_X = "BU X"
+    CCA = "CCA"
     HALT = "\\"
     STATUS = "/"
     RDSTAT = "RS" # RS [axis]?
@@ -92,3 +93,19 @@ class ControlMode(Enum):
     EXTERNAL_CLOSED_LOOP = 1
     INTERNAL_OPEN_LOOP = 2
     EXTERNAL_OPEN_LOOP = 3
+
+
+class JoystickPolarity(Enum):
+    # enum values are used in calculations elsewhere. Do not change them.
+    INVERTED = 0
+    DEFAULT = 1
+
+
+class CCAZ(Enum):
+    """Z parameter options for CCA command."""
+    # more commands.
+    AXIS_1_REVERSE_JOYSTICK_POLARITY = 22
+    AXIS_1_RESET_POLARITY = 23
+    AXIS_2_REVERSE_JOYSTICK_POLARITY = 24
+    AXIS_2_RESET_JOYSTICK_POLARITY = 25
+    # more commands.
