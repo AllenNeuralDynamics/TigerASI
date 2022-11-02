@@ -4,6 +4,7 @@ from serial import Serial, SerialException
 from functools import cache, wraps
 from typing import Union
 from .device_codes import *
+from typing import Union
 import logging
 
 # Constants
@@ -265,13 +266,15 @@ class TigerController:
 
         """
         args = [f"{ax}+" for ax in args]
+        # Round axes values in mm to 4 decimal places.
+        kwargs = {x: round(v, 4) for x, v in kwargs.items()}
         return self._set_cmd_args_and_kwds(Cmds.SETLOW, *args, **kwargs,
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
     @axis_check
     def get_lower_travel_limit(self, *args: str):
-        """Get the specified axes travel limits as a dict.
+        """Get the specified axes' lower travel limits in [mm] as a dict.
 
         Note: the returned value will adjust automatically such that the
         physical location remains constant.
@@ -314,13 +317,15 @@ class TigerController:
 
         """
         args = [f"{ax}+" for ax in args]
+        # Round axes values in mm to 4 decimal places.
+        kwargs = {x: round(v, 4) for x, v in kwargs.items()}
         return self._set_cmd_args_and_kwds(Cmds.SETUP, *args, **kwargs,
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
     @axis_check
     def get_upper_travel_limit(self, *args: str):
-        """Get the specified upper axes travel limits as a dict.
+        """Get the specified axes' upper travel limits in [mm] as a dict.
 
         Note: the returned value will adjust automatically such that the
         physical location remains constant.
