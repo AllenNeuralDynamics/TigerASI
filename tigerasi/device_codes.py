@@ -6,6 +6,7 @@ from enum import Enum
 class Cmds(Enum):
     # Common commands in bytes form.
     BUILD_X = "BU X"
+    CCA = "CCA"
     HALT = "\\"
     STATUS = "/"
     RDSTAT = "RS" # RS [axis]?
@@ -16,6 +17,8 @@ class Cmds(Enum):
     WHERE = "W"  # [axis] [axis]
     BACKLASH = "B" # [axis]=0 [axis]=0
     CNTS = "CNTS" # [axis]?
+    J = "J"  # Joystick
+    JS = "JS"  # Joystick
     SCAN = "SCAN" # [X?] [Y=fast_axis_id, default X] [Z=slow_axis_id, default Y] [F=pattern]
     SCANR = "SCANR" # fast_axis [X=start in mm] [Y=stop in mm] [Z=enc_divide] [F= #_pixels] [R=retrace_speed]
     SCANV = "SCANV" # slow_axis [X=start in mm] [Y=stop in mm] [Z=number_of_lines] [F=overshoot_time in ms] [T=scan_overshoot]
@@ -54,6 +57,23 @@ class ErrorCodes(Enum):
     SERIAL_CMD_HALTED = ':N-21'
 
 
+class JoystickInput(Enum):
+    NONE = 0
+    DEFAULT = 1
+    JOYSTICK_X = 2  # default for x axis
+    JOYSTICK_Y = 3  # default for y axis
+    CONTROL_KNOB = 4  # default for z axis
+    X_WHEEL = 5
+    Y_WHEEL = 6
+    ADC_CH1 = 7
+    FOOTSWITCH = 8
+    JX_X_WHEEL_COMBO = 9
+    JY_Y_WHEEL_COMBO = 10
+    CRIFF_KNOB = 11
+    Z_WHEEL = 22
+    F_WHEEL = 23
+
+
 class ScanState(Enum):
     """Scan states"""
     # http://asiimaging.com/docs/commands/scan
@@ -73,3 +93,19 @@ class ControlMode(Enum):
     EXTERNAL_CLOSED_LOOP = 1
     INTERNAL_OPEN_LOOP = 2
     EXTERNAL_OPEN_LOOP = 3
+
+
+class JoystickPolarity(Enum):
+    # enum values are used in calculations elsewhere. Do not change them.
+    INVERTED = 0
+    DEFAULT = 1
+
+
+class CCAZ(Enum):
+    """Z parameter options for CCA command."""
+    # more commands.
+    AXIS_1_REVERSE_JOYSTICK_POLARITY = 22
+    AXIS_1_RESET_POLARITY = 23
+    AXIS_2_REVERSE_JOYSTICK_POLARITY = 24
+    AXIS_2_RESET_JOYSTICK_POLARITY = 25
+    # more commands.
