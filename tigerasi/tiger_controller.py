@@ -652,7 +652,7 @@ class TigerController:
         args_str = f" X={round(scan_start_mm, 4)} Y={round(scan_stop_mm, 4)}" \
                    f" Z={line_count}{overshoot_time_str}{overshoot_factor_str}"
         cmd_str = Cmds.SCANV.value + args_str + '\r'
-        self.send(cmd_str.value, wait_for_output=wait_for_output,
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     # TODO: consider making this function take in lettered axes and
