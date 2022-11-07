@@ -548,8 +548,8 @@ class TigerController:
         :param axis: the axis of interest.
         :return: the axis id of the specified axis.
         """
-        cmd_str = Cmds.Z2B.value + f"{axis.upper()}?" + '\r'
-        reply = self.send(cmd_str.encode('ascii'))
+        cmd_str = Cmds.Z2B.value + f" {axis.upper()}?" + '\r'
+        reply = self.send(cmd_str)
         return int(reply.split('=')[-1])
 
     @axis_check
@@ -574,7 +574,7 @@ class TigerController:
         #TODO: Figure out how to make command below work
         # self.scan(ScanState.START)
         cmd_str = Cmds.SCAN.value + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     def stop_scan(self):
@@ -652,14 +652,14 @@ class TigerController:
         args_str = f" X={round(scan_start_mm, 4)} Y={round(scan_stop_mm, 4)}" \
                    f" Z={line_count}{overshoot_time_str}{overshoot_factor_str}"
         cmd_str = Cmds.SCANV.value + args_str + '\r'
-        self.send(cmd_str.value, wait_for_output=wait_for_output,
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     # TODO: consider making this function take in lettered axes and
     #   converting to axis ids under the hood.
     def scan(self, state: ScanState = None, fast_axis_id: str = None,
              slow_axis_id: str = None, pattern: ScanPattern = None,
-             wait_for_output=True, wait_for_reply=True):
+             wait_for_output: bool = True, wait_for_reply: bool = True):
         """start scan and define axes used for scanning.
 
         Note: fast_axis and slow_axis are specified via 'axis id', which can
