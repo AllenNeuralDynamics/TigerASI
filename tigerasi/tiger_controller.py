@@ -548,8 +548,8 @@ class TigerController:
         :param axis: the axis of interest.
         :return: the axis id of the specified axis.
         """
-        cmd_str = Cmds.Z2B.value + f"{axis.upper()}?" + '\r'
-        reply = self.send(cmd_str.encode('ascii'))
+        cmd_str = Cmds.Z2B.value + f" {axis.upper()}?" + '\r'
+        reply = self.send(cmd_str)
         return int(reply.split('=')[-1])
 
     @axis_check
@@ -574,7 +574,7 @@ class TigerController:
         #TODO: Figure out how to make command below work
         # self.scan(ScanState.START)
         cmd_str = Cmds.SCAN.value + '\r'
-        self.send(cmd_str.encode('ascii'), wait_for_output=wait_for_output,
+        self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
     def stop_scan(self):
