@@ -16,7 +16,7 @@ motor_axes = box.get_build_config()['Motor Axes']
 motor_axes = [a.lower() for a in motor_axes if a.isalpha()]  # make all lowercase.
 print(f"axes are: {motor_axes}")
 old_speeds = {}
-new_speeds = {'x': 0.5, 'y': 0.25, 'z': 0.75}
+new_speeds = {'x': 0.49999999, 'y': 0.251111111, 'z': 0.752222222}
 for ax in [a for a in motor_axes if a in new_speeds]:
     speed = box.get_speed(ax)
     old_speeds[ax] = speed
@@ -40,7 +40,7 @@ for ax in [a for a in motor_axes if a.isalpha()]:
 
 # TEST Moving and halting
 # read the position.
-box.home_in_place()
+box.zero_in_place()
 print(f"box position is: {box.get_position('x', 'y', 'z')}")
 # Send a relative move cmd.
 print("moving an axis.")

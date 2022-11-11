@@ -210,7 +210,7 @@ class TigerController:
 
         .. code-block:: python
 
-            box.home_in_place('x', 'y')  # x and y axis' current locations are now zero.
+            box.zero_in_place('x', 'y')  # x and y axis' current locations are now zero.
 
         """
         # TODO: what happens if we home a device with CLOCKED POSITIONS?
@@ -226,7 +226,7 @@ class TigerController:
     def set_position(self, wait_for_output: bool = True,
                      wait_for_reply: bool = True, **kwargs: float):
         """Set the specified axes to the specified positions.
-        Similar to :meth:`home_in_place`, but axes' current location can be
+        Similar to :meth:`zero_in_place`, but axes' current location can be
         specified to any location.
 
         :param kwargs: one or more axes specified by name where the value is
@@ -414,6 +414,8 @@ class TigerController:
             box.set_speed(x=50.5, y=10)
 
         """
+        # Round axes values in mm to 4 decimal places.
+        kwargs = {x: round(v, 4) for x, v in kwargs.items()}
         self._set_cmd_args_and_kwds(Cmds.SPEED, **kwargs,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
