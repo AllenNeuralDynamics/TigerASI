@@ -695,36 +695,46 @@ class TigerController:
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def ttl(self, in0_mode: TTLIn0Mode = None, out0_mode: TTLOut0Mode = None,
-            reverse_output_polarity: bool = False,
-            aux_io_state: int = None, aux_io_mask: int = None,
-            aux_io_mode: int = None,
-            card_address: int = None,
-            wait_for_reply: bool = True, wait_for_output: bool = True):
-        """Setup ttl external IO modes or query state (no arguments).
+    def set_external_ttl_pin_modes(self, in0_mode: TTLIn0Mode = None,
+                                   out0_mode: TTLOut0Mode = None,
+                                   reverse_output_polarity: bool = False,
+                                   aux_io_state: int = None,
+                                   aux_io_mask: int = None,
+                                   aux_io_mode: int = None,
+                                   card_address: int = None,
+                                   wait_for_reply: bool = True,
+                                   wait_for_output: bool = True):
+        """Setup ttl external IO modes or query the external output state
+        (if the card specified without any additional arguments).
 
-        See `ASI TTL Implementation http://asiimaging.com/docs/commands/ttl`
+        See `ASI TTL Implementation <http://asiimaging.com/docs/commands/ttl>`_
         for more details.
 
-        :param in0_mode: set TTL trigger mode when configured as input.
-        :param out0_mode:
+        :param in0_mode: Set behavior of "IN" external TTL input pin. Optional.
+        :param out0_mode: Set behavior of "OUT" external TTL output pin.
+            Optional.
         :param reverse_output_polarity: bool. If True, output goes logic low
-            when the output is asserted.
-        :param aux_io_state:
-        :param aux_io_mask:
+            when the output is asserted. Optional. Defaults to False.
+        :param aux_io_state: Optional. See ASI docs.
+        :param aux_io_mask: Optional. See ASI docs.
         :param aux_io_mode: Set what determines TTL value when set as outputs.
+            Optional.
         :param card_address: Card address for which to apply the settings.
             Optional if `in0_mode` is set to
             :obj:`~tigerasi.device_codes.TTLIn0Mode.REPEAT_LAST_MOVE`.
         :param wait_for_output: whether to wait for the message to exit the pc.
+            Optional.
         :param wait_for_reply: whether to wait for the tigerbox to reply.
+            Optional.
 
         .. code-block:: python
+
             from tiger_controller.device_codes import TTLIN0Mode as IN0Mode
             from tiger_controller.device_codes import TTLOUT0Mode as OUT0Mode
 
-            box.ttl(In0Mode.REPEAT_LAST_REL_MOVE, Out0Mode.PULSE_AFTER_MOVING,
-                    reverse_output_polarity=False)
+            box.set_external_ttl_pin_modes(In0Mode.REPEAT_LAST_REL_MOVE,
+                                           Out0Mode.PULSE_AFTER_MOVING,
+                                           reverse_output_polarity=True)
 
         """
         in0_str = f" X={in0_mode.value} " if in0_mode is not None else ""
