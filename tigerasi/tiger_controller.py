@@ -700,8 +700,6 @@ class TigerController:
             wait_for_reply: bool = True, wait_for_output: bool = True):
         """Setup ttl external IO modes or query state (no arguments).
 
-        Note: this only works on the Tigerbox hardware X axis.
-
         See `ASI TTL Implementation http://asiimaging.com/docs/commands/ttl`
         for more details.
 
