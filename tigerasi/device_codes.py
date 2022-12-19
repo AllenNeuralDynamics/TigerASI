@@ -109,3 +109,26 @@ class CCAZ(Enum):
     AXIS_2_REVERSE_JOYSTICK_POLARITY = 24
     AXIS_2_RESET_JOYSTICK_POLARITY = 25
     # more commands.
+
+
+class TTLIn0Mode(Enum):
+    OFF = 0
+    MOVE_TO_NEXT_POSITION = 1
+    REPEAT_LAST_REL_MOVE = 2
+    AUTOFOCUS = 3
+    ZSTACK_ENABLE = 4
+    POSITION_REPORTING = 5  # Enabling this will probs break the driver.
+    INTERRUPT_ENABLED = 6
+    ARRAY_MOVE_TO_NEXT_POSITION = 7
+    IN0_LOCK_TOGGLE = 9
+    OUT0_TOGGLE_STATE = 10
+    SERVOLOCK_MODE = 11
+    SERVOLOCK_RELATIVE = 12
+    # more niche commands not included.
+    SINGLE_AXIS_FUNCTION = 30
+
+
+class TTLOut0Mode(Enum):
+    ALWAYS_LOW = 0
+    ALWAYS_HIGH = 1
+    PULSE_AFTER_MOVING = 2

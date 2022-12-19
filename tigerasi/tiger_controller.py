@@ -87,6 +87,9 @@ class TigerController:
         # Create O(1) lookup container.
         self.axes = set(self.ordered_axes)
 
+        # Internal State Tracking to issue moves correctly.
+        self._last_rel_move_axes = []  # axes specified in previous MOVEREL
+
     def halt(self, wait_for_output: bool = True, wait_for_reply: bool = True):
         """stop any moving axis."""
         self.send(f"{Cmds.HALT.value}\r", wait_for_output=wait_for_reply,
@@ -112,6 +115,8 @@ class TigerController:
         self._set_cmd_args_and_kwds(Cmds.MOVEREL, **kwargs,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
+        # Save the most recent MOVEREL axes to properly issue the TTL cmd.
+        self._last_rel_move_axes = [x for x in kwargs if x in self.axes]
 
     @axis_check
     def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
@@ -143,7 +148,7 @@ class TigerController:
         a stage axis is in the prespecified homing position upon finishing
         this routine.
         """
-        self._set_cmd_args_and_kwds(self.HOME, *args,
+        self._set_cmd_args_and_kwds(Cmds.HOME, *args,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
 
@@ -690,10 +695,11 @@ class TigerController:
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def ttl(self, in0_mode: int = None, out0_mode: int = None,
+    def ttl(self, in0_mode: TTLIn0Mode = None, out0_mode: TTLOut0Mode = None,
             reverse_output_polarity: bool = False,
             aux_io_state: int = None, aux_io_mask: int = None,
             aux_io_mode: int = None,
+            card_address: int = None,
             wait_for_reply: bool = True, wait_for_output: bool = True):
         """Setup ttl external IO modes or query state (no arguments).
 
@@ -702,27 +708,48 @@ class TigerController:
 
         :param in0_mode: set TTL trigger mode when configured as input.
         :param out0_mode:
-        :param reverse_output_polarity:
+        :param reverse_output_polarity: bool. If True, output goes logic low
+            when the output is asserted.
         :param aux_io_state:
         :param aux_io_mask:
         :param aux_io_mode: Set what determines TTL value when set as outputs.
+        :param card_address: Card address for which to apply the settings.
+            Optional if `in0_mode` is set to
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.REPEAT_LAST_MOVE`.
         :param wait_for_output: whether to wait for the message to exit the pc.
         :param wait_for_reply: whether to wait for the tigerbox to reply.
+
+        .. code-block:: python
+            from tiger_controller.device_codes import TTLIN0Mode as IN0Mode
+            from tiger_controller.device_codes import TTLOUT0Mode as OUT0Mode
+
+            box.ttl(In0Mode.REPEAT_LAST_REL_MOVE, Out0Mode.PULSE_AFTER_MOVING,
+                    reverse_output_polarity=False)
+
         """
-        # TODO range checks.
-        in0_str = f" X={in0_mode}" if in0_mode is not None else ""
-        out0_str = f" Y={out0_mode}" if out0_mode is not None else ""
-        auxstate_str = f" Z={aux_io_state}" if aux_io_state is not None else ""
-        polarity_str = f" F={-1 if reverse_output_polarity else 1}" \
+        in0_str = f" X={in0_mode.value} " if in0_mode is not None else ""
+        out0_str = f" Y={out0_mode.value} " if out0_mode is not None else ""
+        auxstate_str = f" Z={aux_io_state} " if aux_io_state is not None else ""
+        polarity_str = f" F={-1 if reverse_output_polarity else 1} " \
             if reverse_output_polarity is not None else ""
-        auxmask_str = f" R={aux_io_mask}" if aux_io_mask is not None else ""
-        auxmode_str = f" T={aux_io_mode}" if aux_io_mode is not None else ""
+        auxmask_str = f" R={aux_io_mask} " if aux_io_mask is not None else ""
+        auxmode_str = f" T={aux_io_mode} " if aux_io_mode is not None else ""
         # Aggregate specified params.
         param_str = f"{in0_str}{out0_str}{auxstate_str}{polarity_str}" \
-                    f"{auxmask_str}{auxmode_str}"
-        cmd_str = Cmds.TTL.value + param_str + '\r'
-        self.send(cmd_str, wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+                    f"{auxmask_str}{auxmode_str}".rstrip()
+        # Aggregate all cards that we need to issue this ttl setup to.
+        if in0_mode == TTLIn0Mode.REPEAT_LAST_REL_MOVE and card_address is None:
+            cards = {self.axis_to_card[x] for x in self._last_rel_move_axes}
+            for card in cards:
+                self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
+                                            card_address=card,
+                                            wait_for_output=wait_for_output,
+                                            wait_for_reply=wait_for_reply)
+        else:
+            self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
+                                        card_address=card_address,
+                                        wait_for_output=wait_for_output,
+                                        wait_for_reply=wait_for_reply)
 
     def is_moving(self):
         """blocks. True if any axes is moving. False otherwise."""
@@ -854,6 +881,7 @@ class TigerController:
     def _set_cmd_args_and_kwds(self, cmd: Cmds, *args: str,
                                wait_for_output: bool = True,
                                wait_for_reply: bool = True,
+                               card_address: int = None,
                                **kwargs: Union[float, int]):
         """Flag a parameter or set a parameter with a specified value.
 
@@ -864,9 +892,10 @@ class TigerController:
             box._set_cmd_args_and_kwds(Cmds.SETHOME, y=10, z=20.5)
 
         """
+        card_addr_str = f"{card_address}" if card_address is not None else ""
         args_str = " ".join([f"{a.upper()}" for a in args])
         kwds_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
-        cmd_str = f"{cmd.value} {args_str} {kwds_str}\r"
+        cmd_str = f"{card_addr_str}{cmd.value} {args_str} {kwds_str}\r"
         return self.send(cmd_str, wait_for_output=wait_for_output,
                          wait_for_reply=wait_for_reply)
 
