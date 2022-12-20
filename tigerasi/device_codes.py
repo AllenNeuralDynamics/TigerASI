@@ -16,6 +16,8 @@ class Cmds(Enum):
     HERE = "H"  # [axis]=0 [axis]=0
     WHERE = "W"  # [axis] [axis]
     BACKLASH = "B" # [axis]=0 [axis]=0
+    ARRAY = "AR"
+    AHOME = "AH"
     CNTS = "CNTS" # [axis]?
     J = "J"  # Joystick
     JS = "JS"  # Joystick
@@ -113,17 +115,17 @@ class CCAZ(Enum):
 
 class TTLIn0Mode(Enum):
     OFF = 0
-    MOVE_TO_NEXT_POSITION = 1
+    MOVE_TO_NEXT_ABS_POSITION = 1
     REPEAT_LAST_REL_MOVE = 2
     AUTOFOCUS = 3
     ZSTACK_ENABLE = 4
     POSITION_REPORTING = 5  # Enabling this will probs break the driver.
     INTERRUPT_ENABLED = 6
-    ARRAY_MOVE_TO_NEXT_POSITION = 7
+    ARRAY_MODE_MOVE_TO_NEXT_POSITION = 7
     IN0_LOCK_TOGGLE = 9
     OUT0_TOGGLE_STATE = 10
     SERVOLOCK_MODE = 11
-    SERVOLOCK_RELATIVE = 12
+    MOVE_TO_NEXT_REL_POSITION = 12
     # more niche commands not included.
     SINGLE_AXIS_FUNCTION = 30
 
