@@ -15,22 +15,27 @@ REPLY_WAIT_TIME_S = 0.020  # minimum time to wait for a reply after having
                            # sent a command.
 
 
-def axis_check(func):
-    """Ensure that the axis (specified as an arg or kwarg) exists."""
-
-    @wraps(func)  # Required for sphinx doc generation.
-    def inner(self, *args, **kwargs):
-        # Check if axes are specified in *args.
-        # Otherwise, check axes specified in **kwargs.
-        iterable = args if len(args) else kwargs.keys()
-        for arg in iterable:
-            # skip keyworded wait flags.
-            if arg.startswith("wait_") and arg in kwargs:
-                continue
-            assert arg.upper() in self.axes, \
-                f"Error. Axis '{arg.upper()}' does not exist"
-        return func(self, *args, **kwargs)
-    return inner
+# Decorators
+def axis_check(*args_to_skip: str):
+    """Ensure that the axis (specified as an arg or kwd) exists.
+    Additionally, sanitize all inputs to upper case.
+    Parameters specified in the `args_to_skip` are omitted."""
+    def wrap(func):
+        # wraps needed for sphinx to make docs for methods with this decorator.
+        @wraps(func)
+        def inner(self, *args, **kwds):
+            # Sanitize input to all-uppercase. Filter out specified parameters.
+            args = [a.upper() for a in args if a not in args_to_skip]
+            kwds = {k.upper(): v for k, v in kwds.items() if k not in args_to_skip}
+            # Combine args and kwarg names; skip double-adding params specified
+            # as one or the other.
+            iterable = [a for a in args if a not in kwds] + list(kwds.keys())
+            for arg in iterable:
+                assert arg.upper() in self.axes, \
+                    f"Error. Axis '{arg.upper()}' does not exist"
+            return func(self, *args, **kwds)
+        return inner
+    return wrap
 
 
 def no_repeated_axis_check(func):
@@ -98,6 +103,7 @@ class TigerController:
 
         # Internal State Tracking to issue moves correctly.
         self._last_rel_move_axes = []  # axes specified in previous MOVEREL
+        self._rb_axes = []  # axes specified as movable by ring buffer moves.
 
     def halt(self, wait_for_output: bool = True, wait_for_reply: bool = True):
         """stop any moving axis."""
@@ -105,7 +111,7 @@ class TigerController:
                   wait_for_reply=wait_for_reply)
 
     # High-Level Commands
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """Move the axes specified in kwargs by a relative amount.
@@ -127,7 +133,7 @@ class TigerController:
         # Save the most recent MOVEREL axes to properly issue the TTL cmd.
         self._last_rel_move_axes = [x for x in kwargs if x in self.axes]
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """move the axes specified in kwargs by the specified absolute amount
@@ -145,7 +151,7 @@ class TigerController:
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def home(self, *args: str,
              wait_for_output: bool = True, wait_for_reply: bool = True):
         """Move to the preset home position (or hard axis travel limit) for
@@ -161,7 +167,7 @@ class TigerController:
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     @no_repeated_axis_check
     def set_home(self, *args: str, wait_for_output: bool = True,
                  wait_for_reply: bool = True, **kwargs: float):
@@ -188,7 +194,7 @@ class TigerController:
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def reset_home(self, *args: str, wait_for_output: bool = True,
                    wait_for_reply: bool = True):
         """Restore home values of the axes specified to firmware defaults.
@@ -200,7 +206,7 @@ class TigerController:
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def get_home(self, *args: str):
         """Return the position to home to in [mm] for the specified axes or all
         axes if none are specified.
@@ -214,7 +220,7 @@ class TigerController:
             args = self.ordered_axes
         return self._get_axis_value(Cmds.SETHOME, *args)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def zero_in_place(self, *args: str):
         """Zero out the specified axes.
         (i.e: Set the specified axes current location to zero.)
@@ -236,7 +242,7 @@ class TigerController:
             axis_positions[axis] = 0
         self.set_position(**axis_positions)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def set_position(self, wait_for_output: bool = True,
                      wait_for_reply: bool = True, **kwargs: float):
         """Set the specified axes to the specified positions.
@@ -255,7 +261,7 @@ class TigerController:
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     @no_repeated_axis_check
     def set_lower_travel_limit(self, *args: str, wait_for_output: bool = True,
                                wait_for_reply: bool = True, **kwargs: float):
@@ -286,7 +292,7 @@ class TigerController:
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def get_lower_travel_limit(self, *args: str):
         """Get the specified axes' lower travel limits in [mm] as a dict.
 
@@ -297,7 +303,7 @@ class TigerController:
         """
         return self._get_axis_value(Cmds.SETLOW, *args)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def reset_lower_travel_limits(self, *args: str,
                                   wait_for_output: bool = True,
                                   wait_for_reply: bool = True):
@@ -309,7 +315,7 @@ class TigerController:
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     @no_repeated_axis_check
     def set_upper_travel_limit(self, *args: str, wait_for_output: bool = True,
                                wait_for_reply: bool = True, **kwargs: float):
@@ -340,7 +346,7 @@ class TigerController:
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def get_upper_travel_limit(self, *args: str):
         """Get the specified axes' upper travel limits in [mm] as a dict.
 
@@ -351,7 +357,7 @@ class TigerController:
         """
         return self._get_axis_value(Cmds.SETUP, *args)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def reset_upper_travel_limits(self, *args: str,
                                   wait_for_output: bool = True,
                                   wait_for_reply: bool = True):
@@ -363,7 +369,7 @@ class TigerController:
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def set_axis_backlash(self, wait_for_output: bool = True,
                           wait_for_reply: bool = True, **kwargs: float):
         """Set the backlash compensation value for one or more axes.
@@ -415,7 +421,7 @@ class TigerController:
         axes_positions = [float(v) for v in reply.split()[1:]]
         return {k: v for k, v in zip(args, axes_positions)}
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def set_speed(self, wait_for_output: bool = True,
                   wait_for_reply: bool = True, **kwargs: float):
         """Set one or more axis speeds to a value in [mm/sec].
@@ -568,7 +574,7 @@ class TigerController:
         reply = self.send(cmd_str)
         return int(reply.split('=')[-1])
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def pm(self, wait_for_output=True, wait_for_reply=True,
            **kwargs: ControlMode):
         """Set internal or external, open or closed loop, axis control.
@@ -781,10 +787,79 @@ class TigerController:
                          wait_for_output: bool = True):
         """Start an array scan with parameters set by :meth:`setup_array_scan`.
         Note that this command is not needed if the scan is setup for external
-        triggering.
+        TTL pin triggering.
         """
         self._set_cmd_args_and_kwds(Cmds.ARRAY,
                                     card_address=card_address,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+
+    def reset_ring_buffer(self, wait_for_reply: bool = True,
+                          wait_for_output: bool = True):
+        self.clear_ring_buffer(wait_for_reply=wait_for_reply,
+                               wait_for_output=wait_for_output)
+        self._rb_axes = []
+
+    def clear_ring_buffer(self, wait_for_reply: bool = True,
+                          wait_for_output: bool = True):
+        kwds = {'X': 0}
+        self._set_cmd_args_and_kwds(Cmds.RBMODE, kwds,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+
+    @axis_check('mode')
+    def setup_ring_buffer(self, *axes: str,
+                          mode: RingBufferMode = RingBufferMode.TTL,
+                          wait_for_reply: bool = True,
+                          wait_for_output: bool = False):
+        """Setup the ring buffer.
+
+        :param axes: any number of axis names which will be enabled to move
+            via moves queued into the ring buffer.
+        :param mode: ring buffer mode specified as a
+            :obj:`~tigerasi.device_codes.RingBufferMode` enum.
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+            by the PC.
+        """
+        # Enable the axes specified above to be movable from queued ring buffer
+        # moves.
+        axis_byte = 0
+        for axis in axes:
+            offset = self.ordered_axes.index(axis)
+            axis_byte |= (1 << offset)
+        axis_byte = axis_byte & 0xFFFF  # Fix axis byte to 32 bits wide.
+        # Save axes so we can autoconfigure set_ttl_pin_modes without
+        # specifying the card address.
+        self._rb_axes = [x for x in axes]
+        kwds = {'X': 0, 'Y': axis_byte, 'F': mode.value}  # X=0 clears ring buffer.
+        self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+
+    def queue_buffered_move(self, wait_for_reply: bool = True,
+                            wait_for_output: bool = True, **axes: float,):
+        """Push a move (relative or absolute depends on context) into the
+        ring buffer.
+
+        Note: if using TTL external input triggering, the TTL pin mode dictates
+        whether the moves are absolute or relative. Mode can be set via:
+        :meth:`set_ttl_pin_modes`.
+        :obj:`~tigerasi.device_codes.TTLIn0Mode.MOVE_TO_NEXT_ABS_POSITION`
+        will interpret stored moves in the buffer as absolute moves while
+        :obj:`~tigerasi.device_codes.TTLIn0Mode.MOVE_TO_NEXT_REL_POSITION`
+        will interpret stored moves in the buffer as relative moves.
+
+        Note: the 'axis_byte' parameter must be set correctly such that the
+        axes specified in the move are enabled to move.
+
+        :param axes: one or more axes specified by name where the value is
+            the absolute position (in steps) to move to.
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+            by the PC.
+        """
+        self._set_cmd_args_and_kwds(Cmds.LOAD, **axes,
                                     wait_for_reply=wait_for_reply,
                                     wait_for_output=wait_for_output)
 
@@ -820,8 +895,11 @@ class TigerController:
             See ASI docs.
         :param card_address: The card hex address for which to apply the
             settings. Optional if `in0_mode` is set to
-            :obj:`~tigerasi.device_codes.TTLIn0Mode.REPEAT_LAST_MOVE` or
-            :obj:`~tigerasi.device_codes.TTLIn0Mode.ARRAY_MODE_MOVE_TO_NEXT_POSITION`.
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.REPEAT_LAST_MOVE`,
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.ARRAY_MODE_MOVE_TO_NEXT_POSITION`,
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.MOVE_TO_NEXT_ABS_POSITION`,
+            or
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.MOVE_TO_NEXT_REL_POSITION`.
         :param wait_for_output: whether to wait for the message to exit the pc.
             Optional.
         :param wait_for_reply: whether to wait for the tigerbox to reply.
@@ -853,7 +931,7 @@ class TigerController:
         # Aggregate specified params.
         param_str = f"{in0_str}{out0_str}{auxstate_str}{polarity_str}" \
                     f"{auxmask_str}{auxmode_str}".rstrip()
-        # Infer address of card or cards for certain ttl settings.
+        # Infer address of card or cards for a repeated move.
         if in0_mode == TTLIn0Mode.REPEAT_LAST_REL_MOVE and card_address is None:
             cards = {self.axis_to_card[x][0] for x in self._last_rel_move_axes}
             if not cards:
@@ -861,7 +939,20 @@ class TigerController:
                                    "device to repeat the last relative move "
                                    "when no previous relative move has been "
                                    "issued.")
-            for card in cards:
+            for card in cards:  # apply settings to each card.
+                self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
+                                            card_address=card,
+                                            wait_for_output=wait_for_output,
+                                            wait_for_reply=wait_for_reply)
+        # Infer card address(es) for ring buffer axis moves if it was setup.
+        elif in0_mode in [TTLIn0Mode.MOVE_TO_NEXT_REL_POSITION,
+                          TTLIn0Mode.MOVE_TO_NEXT_ABS_POSITION] \
+                and card_address is None:
+            if len(self._rb_axes) == 0:
+                raise RuntimeError("Cannot infer the card address(es). "
+                                   "Ring Buffer has not yet been setup.")
+            cards = {self.axis_to_card[x][0] for x in self._rb_axes}
+            for card in cards:  # apply settings to each card.
                 self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
                                             card_address=card,
                                             wait_for_output=wait_for_output,
@@ -877,6 +968,7 @@ class TigerController:
                                    "X and Y axes. card_address must be "
                                    "explicitly specified.")
             card = cards.pop()  # Get the only set item.
+            self._has_firmware(card, FirmwareModules.ARRAY_MODULE)
             self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
                                         card_address=card,
                                         wait_for_reply=wait_for_reply,
