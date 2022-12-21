@@ -59,6 +59,11 @@ class ErrorCodes(Enum):
     SERIAL_CMD_HALTED = ':N-21'
 
 
+class FirmwareModules(Enum):
+    SCAN_MODULE = "SCAN MODULE"
+    ARRAY_MODULE = "ARRAY MODULE"
+
+
 class JoystickInput(Enum):
     NONE = 0
     DEFAULT = 1
