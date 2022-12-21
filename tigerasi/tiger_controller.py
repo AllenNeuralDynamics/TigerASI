@@ -84,7 +84,10 @@ class TigerController:
         build_config = self.get_build_config()
         self.ordered_axes = build_config['Motor Axes']
         self.axis_to_card = self._get_axis_to_card_mapping(build_config)
-        self._card_modules = {x: self._get_card_modules[x] for x in self.ordered_axes}
+        # Cache a list of firmware modules keyed by card address.
+        self._card_modules = {self.axis_to_card[x][0]:
+                              self._get_card_modules(self.axis_to_card[x][0])
+                              for x in self.ordered_axes}
         ## FW-1000 filter wheels have their own command set but show up in
         # axis list as '0', '1' etc, so we remove them..
         self.ordered_filter_wheels = [fw for fw in self.ordered_axes if fw.isnumeric()]
@@ -702,9 +705,9 @@ class TigerController:
                   wait_for_reply=wait_for_reply)
 
     def setup_array_scan(self,
-                         x_points: int = 0, delta_x_mm: int = 0,
-                         y_points: int = 0, delta_y_mm: int = 0,
-                         theta_deg: int = 0,
+                         x_points: int = 0, delta_x_mm: float = 0,
+                         y_points: int = 0, delta_y_mm: float = 0,
+                         theta_deg: float = 0,
                          x_start_mm: int = None,
                          y_start_mm: int = None,
                          card_address: int = None,
@@ -745,7 +748,7 @@ class TigerController:
         """
         # Infer address of the only card with an x and y axis if unspecified.
         if card_address is None:
-            cards = {self.axis_to_card[x][0] for x in ['x', 'y']}
+            cards = {self.axis_to_card[x][0] for x in ['X', 'Y']}
             if len(cards) != 1:
                 raise RuntimeError("Cannot infer the card address. It must be"
                                    "specified explicitly.")
