@@ -2,7 +2,7 @@
 """TigerController Serial Port Abstraction"""
 from serial import Serial, SerialException
 from functools import cache, wraps
-from typing import Union
+from time import sleep, perf_counter
 from .device_codes import *
 from typing import Union
 import logging
@@ -11,6 +11,9 @@ import logging
 UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
 MM_DECIMAL_PLACES = 4
 DEG_DECIMAL_PLACES = 3
+REPLY_WAIT_TIME_S = 0.020  # minimum time to wait for a reply after having
+                           # sent a command.
+
 
 def axis_check(func):
     """Ensure that the axis (specified as an arg or kwarg) exists."""
@@ -75,6 +78,7 @@ class TigerController:
             print("Error: could not open connection to Tiger Controller. "
                   "Is the device plugged in? Is another program using it?")
             raise
+        self._last_cmd_send_time = perf_counter()
 
         # Get the lettered axes in hardware order: ['X', 'Y', 'Z', ...].
         build_config = self.get_build_config()
@@ -906,6 +910,12 @@ class TigerController:
 
     def is_moving(self):
         """blocks. True if any axes is moving. False otherwise."""
+        # Wait at least 20[ms] following the last time we sent a command.
+        # (Handles edge case where the last command was sent with wait=False.)
+        time_since_last_cmd = perf_counter() - self._last_cmd_send_time
+        sleep_time = REPLY_WAIT_TIME_S - time_since_last_cmd
+        if sleep_time > 0:
+            sleep(sleep_time)
         # Send the inquiry.
         reply = self.send(f"{Cmds.STATUS.value}\r").rstrip('\r\n')
         # interpret reply.
@@ -914,7 +924,13 @@ class TigerController:
         elif reply == "N":
             return False
         else:
-            raise RuntimeError(f"Error. Cannot tell if device is moving. Received: '{reply}'")
+            raise RuntimeError(f"Error. Cannot tell if device is moving. "
+                               f"Received: '{reply}'")
+
+    def wait(self):
+        """Block until tigerbox is idle."""
+        while self.is_moving():
+            pass
 
     def clear_incoming_message_queue(self):
         """Clear input buffer and reset skipped replies."""
@@ -935,8 +951,11 @@ class TigerController:
         :param wait_for_reply: wait until at least one line has been read in
             by the PC.
         """
+        # TODO: clear input buffer before issuing a read-and-wait if the
+        #  recv buffer is full. Use in_waiting.
         self.log.debug(f"sending: {repr(cmd_str)}")
         self.ser.write(cmd_str.encode('ascii'))
+        self._last_cmd_send_time = perf_counter()
         if wait_for_output:  # Wait for all bytes to exit the output buffer.
             while self.ser.out_waiting:
                 pass
