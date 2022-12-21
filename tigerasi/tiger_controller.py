@@ -748,7 +748,8 @@ class TigerController:
 
     def wait(self):
         """Block until tigerbox is idle."""
-        return not self.is_moving()
+        while self.is_moving():
+            pass
 
     def clear_incoming_message_queue(self):
         """Clear input buffer and reset skipped replies."""
