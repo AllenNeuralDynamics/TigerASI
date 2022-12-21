@@ -803,7 +803,7 @@ class TigerController:
     def clear_ring_buffer(self, wait_for_reply: bool = True,
                           wait_for_output: bool = True):
         kwds = {'X': 0}
-        self._set_cmd_args_and_kwds(Cmds.RBMODE, kwds,
+        self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds,
                                     wait_for_reply=wait_for_reply,
                                     wait_for_output=wait_for_output)
 
@@ -837,6 +837,7 @@ class TigerController:
                                     wait_for_reply=wait_for_reply,
                                     wait_for_output=wait_for_output)
 
+    @axis_check('wait_for_reply', 'wait_for_output')
     def queue_buffered_move(self, wait_for_reply: bool = True,
                             wait_for_output: bool = True, **axes: float,):
         """Push a move (relative or absolute depends on context) into the

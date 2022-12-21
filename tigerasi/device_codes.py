@@ -125,6 +125,7 @@ class RingBufferMode(Enum):
     ONE_SHOT = 1
     REPEATING = 2
 
+
 class TTLIn0Mode(Enum):
     OFF = 0
     MOVE_TO_NEXT_ABS_POSITION = 1
