@@ -11,6 +11,7 @@ import logging
 UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
 REPLY_WAIT_TIME_S = 0.020  # minimum time to wait for a reply after having
                            # sent a command.
+GET_INFO_STRING_SPLIT = 33 # index to split get info string reply
 
 
 def axis_check(func):
@@ -803,6 +804,30 @@ class TigerController:
             else:
                 break
         return reply
+
+    @axis_check('wait_for_reply', 'wait_for_output')
+    def get_info(self, axis: str):
+        """Get the hardware's axis info for a given axis.
+
+        :param axis: the axis of interest.
+        :return: the axis info of the specified axis.
+        """
+        cmd_str = Cmds.INFO.value + f" {axis.upper()}" + '\r'
+        reply = self.send(cmd_str)
+        # Reply is formatted in such a way that it can be put into dict form.
+        # but reply is in lines with two columns
+        # first column ends at index GET_INFO_STRING_SPLIT consistently
+        dict_reply = {}
+        for line in reply.split('\r'):
+            cols = []
+            cols.append(line[0:GET_INFO_STRING_SPLIT])
+            cols.append(line[GET_INFO_STRING_SPLIT:len(line)])
+            for col in cols:
+                words = col.split(':')
+                if len(words) == 2:
+                    val = words[1].split()
+                    dict_reply[" ".join(words[0].split())] = val
+        return dict_reply
 
     def get_build_config(self):
         """return the configuration of the Tiger Controller.
