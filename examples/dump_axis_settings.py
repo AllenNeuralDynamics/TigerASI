@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
-"""Connects to the Tiger Box, moves some axes, returns to starting pose."""
+"""Connects to the Tiger Box, grabs and dumps axis information."""
 
 from tigerasi.tiger_controller import TigerController
-from tigerasi.device_codes import TTLIn0Mode, TTLOut0Mode, ScanPattern, \
-    RingBufferMode
-import pprint
-from time import perf_counter, sleep
 import json
 
 PORT_NAME = "COM3"

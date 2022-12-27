@@ -83,6 +83,7 @@ class TigerController:
         build_config = self.get_build_config()
         self.ordered_axes = build_config['Motor Axes']
         self.axis_to_card = self._get_axis_to_card_mapping(build_config)
+        self.axis_to_type = self._get_axis_to_type_mapping(build_config)
         ## FW-1000 filter wheels have their own command set but show up in
         # axis list as '0', '1' etc, so we remove them..
         self.ordered_filter_wheels = [fw for fw in self.ordered_axes if fw.isnumeric()]
@@ -558,7 +559,7 @@ class TigerController:
         reply = self.send(cmd_str)
         return int(reply.split('=')[-1])
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def pm(self, wait_for_output=True, wait_for_reply=True,
            **kwargs: ControlMode):
         """Set internal or external, open or closed loop, axis control.
@@ -575,6 +576,20 @@ class TigerController:
         cmd_str = Cmds.PM.value + axes_str + '\r'
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
+
+    @axis_check('wait_for_reply', 'wait_for_output')
+    def get_pm(self, axis: str):
+        """Get axis control mode.
+
+        :param axis: the axis of interest.
+         :return: control mode of the specified axis.
+        """
+        cmd_str = Cmds.PM.value + f" {axis.upper()}?" + '\r'
+        reply = self.send(cmd_str)
+        # example reply appears as 'V=1 :A'
+        # assume control mode is a single digit
+        control_num = reply[reply.find(axis)+2]
+        return ControlMode(int(control_num))
 
     def start_scan(self, wait_for_output=True, wait_for_reply=True):
         #TODO: Figure out how to make command below work
@@ -829,6 +844,38 @@ class TigerController:
                     dict_reply[" ".join(words[0].split())] = val
         return dict_reply
 
+    @axis_check('wait_for_reply', 'wait_for_output')
+    def get_etl_temp(self, axis: str,
+                     wait_for_output=True, wait_for_reply=True):
+        """Get the etl temperature for a given axis.
+
+        :param axis: the axis of interest.
+        :return: etl temperature of the specified axis.
+        """
+        # enforce axis type for etl = 'b'
+        assert self.axis_to_type[axis] == 'b', \
+            f"Error. Axis '{axis.upper()}' is not an ETL"
+        # get initial control mode
+        ctrl_mode = self.get_pm(axis)
+        # must set to internal mode to read temperature
+        cmd_str = Cmds.PM.value + f" {axis.upper()}={ControlMode.INTERNAL_OPEN_LOOP.value}" + '\r'
+        self.send(cmd_str, wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+        # get pzinfo
+        reply = self.get_pzinfo(self.axis_to_card[axis][0])
+        # return control mode to initial value
+        cmd_str = Cmds.PM.value + f" {axis.upper()}={ctrl_mode.value}" + '\r'
+        self.send(cmd_str, wait_for_output=wait_for_output,
+                  wait_for_reply=wait_for_reply)
+        # parse temperature from response
+        # example line looks like:
+        # 'V Mode[IN],Tc[21.250],TCOMP[ON]'
+        for line in reply.split('\r'):
+            if line.find('TCOMP[ON]') != -1:
+                words = line.split(',')[1]
+                temp = words[words.find('[')+1:words.find(']')]
+        return temp
+
     def get_build_config(self):
         """return the configuration of the Tiger Controller.
 
@@ -852,7 +899,7 @@ class TigerController:
         """parse a build configuration dict to get axis-to-card relationship.
 
         :return: a dict that looks like
-            ``{<axis>: (<hex_address>, <card_index)), etc.}``
+            ``{<axis>: (<hex_address>, <card_index>)), etc.}``
 
         .. code-block:: python
 
@@ -870,6 +917,27 @@ class TigerController:
             curr_card_index[hex_addr] = card_index + 1
         return axis_to_card
 
+    @staticmethod
+    def _get_axis_to_type_mapping(build_config: dict):
+        """parse a build configuration dict to get axis-to-type relationship.
+
+        :return: a dict that looks like
+            ``{<axis>: <type>), etc.}``
+
+        .. code-block:: python
+
+            # return type looks like:
+            {'X': 'X',
+             'V': 'b'}
+
+        """
+        axis_to_type = {}
+        curr_card_index = {c: 0 for c in set(build_config['Axis Types'])}
+        for axis, axis_type in zip(build_config['Motor Axes'],
+                                  build_config['Axis Types']):
+            axis_to_type[axis] = axis_type
+        return axis_to_type
+
     def get_pzinfo(self, card_address):
         """return the configuration of the specified card.
 
@@ -877,8 +945,7 @@ class TigerController:
         """
         cmd_str = str(card_address) + Cmds.PZINFO.value + '\r'
         reply = self.send(cmd_str)
-        # note: reply is not formatted to dict
-        return self._reply_split(reply)
+        return reply
 
     def _order_axes(self, axes: tuple[str]) -> list[str]:
         """return axes in the order they are received in replies from tigerbox.
