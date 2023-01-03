@@ -9,26 +9,33 @@ import logging
 
 # Constants
 UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
+MM_DECIMAL_PLACES = 4
+DEG_DECIMAL_PLACES = 3
 REPLY_WAIT_TIME_S = 0.020  # minimum time to wait for a reply after having
                            # sent a command.
 
 
-def axis_check(func):
-    """Ensure that the axis (specified as an arg or kwarg) exists."""
-
-    @wraps(func)  # Required for sphinx doc generation.
-    def inner(self, *args, **kwargs):
-        # Check if axes are specified in *args.
-        # Otherwise, check axes specified in **kwargs.
-        iterable = args if len(args) else kwargs.keys()
-        for arg in iterable:
-            # skip keyworded wait flags.
-            if arg.startswith("wait_") and arg in kwargs:
-                continue
-            assert arg.upper() in self.axes, \
-                f"Error. Axis '{arg.upper()}' does not exist"
-        return func(self, *args, **kwargs)
-    return inner
+# Decorators
+def axis_check(*args_to_skip: str):
+    """Ensure that the axis (specified as an arg or kwd) exists.
+    Additionally, sanitize all inputs to upper case.
+    Parameters specified in the `args_to_skip` are omitted."""
+    def wrap(func):
+        # wraps needed for sphinx to make docs for methods with this decorator.
+        @wraps(func)
+        def inner(self, *args, **kwds):
+            # Sanitize input to all-uppercase. Filter out specified parameters.
+            args = [a.upper() for a in args if a not in args_to_skip]
+            kwds = {k.upper(): v for k, v in kwds.items() if k not in args_to_skip}
+            # Combine args and kwarg names; skip double-adding params specified
+            # as one or the other.
+            iterable = [a for a in args if a not in kwds] + list(kwds.keys())
+            for arg in iterable:
+                assert arg.upper() in self.axes, \
+                    f"Error. Axis '{arg.upper()}' does not exist"
+            return func(self, *args, **kwds)
+        return inner
+    return wrap
 
 
 def no_repeated_axis_check(func):
@@ -82,6 +89,10 @@ class TigerController:
         build_config = self.get_build_config()
         self.ordered_axes = build_config['Motor Axes']
         self.axis_to_card = self._get_axis_to_card_mapping(build_config)
+        # Cache a list of firmware modules keyed by card address.
+        self._card_modules = {self.axis_to_card[x][0]:
+                              self._get_card_modules(self.axis_to_card[x][0])
+                              for x in self.ordered_axes}
         ## FW-1000 filter wheels have their own command set but show up in
         # axis list as '0', '1' etc, so we remove them..
         self.ordered_filter_wheels = [fw for fw in self.ordered_axes if fw.isnumeric()]
@@ -90,13 +101,17 @@ class TigerController:
         # Create O(1) lookup container.
         self.axes = set(self.ordered_axes)
 
+        # Internal State Tracking to issue moves correctly.
+        self._last_rel_move_axes = []  # axes specified in previous MOVEREL
+        self._rb_axes = []  # axes specified as movable by ring buffer moves.
+
     def halt(self, wait_for_output: bool = True, wait_for_reply: bool = True):
         """stop any moving axis."""
         self.send(f"{Cmds.HALT.value}\r", wait_for_output=wait_for_reply,
                   wait_for_reply=wait_for_reply)
 
     # High-Level Commands
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """Move the axes specified in kwargs by a relative amount.
@@ -115,8 +130,10 @@ class TigerController:
         self._set_cmd_args_and_kwds(Cmds.MOVEREL, **kwargs,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
+        # Save the most recent MOVEREL axes to properly issue the TTL cmd.
+        self._last_rel_move_axes = [x for x in kwargs if x in self.axes]
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """move the axes specified in kwargs by the specified absolute amount
@@ -134,7 +151,7 @@ class TigerController:
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def home(self, *args: str,
              wait_for_output: bool = True, wait_for_reply: bool = True):
         """Move to the preset home position (or hard axis travel limit) for
@@ -146,11 +163,11 @@ class TigerController:
         a stage axis is in the prespecified homing position upon finishing
         this routine.
         """
-        self._set_cmd_args_and_kwds(self.HOME, *args,
+        self._set_cmd_args_and_kwds(Cmds.HOME, *args,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     @no_repeated_axis_check
     def set_home(self, *args: str, wait_for_output: bool = True,
                  wait_for_reply: bool = True, **kwargs: float):
@@ -177,7 +194,7 @@ class TigerController:
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def reset_home(self, *args: str, wait_for_output: bool = True,
                    wait_for_reply: bool = True):
         """Restore home values of the axes specified to firmware defaults.
@@ -189,7 +206,7 @@ class TigerController:
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def get_home(self, *args: str):
         """Return the position to home to in [mm] for the specified axes or all
         axes if none are specified.
@@ -203,7 +220,7 @@ class TigerController:
             args = self.ordered_axes
         return self._get_axis_value(Cmds.SETHOME, *args)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def zero_in_place(self, *args: str):
         """Zero out the specified axes.
         (i.e: Set the specified axes current location to zero.)
@@ -225,7 +242,7 @@ class TigerController:
             axis_positions[axis] = 0
         self.set_position(**axis_positions)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def set_position(self, wait_for_output: bool = True,
                      wait_for_reply: bool = True, **kwargs: float):
         """Set the specified axes to the specified positions.
@@ -244,7 +261,7 @@ class TigerController:
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     @no_repeated_axis_check
     def set_lower_travel_limit(self, *args: str, wait_for_output: bool = True,
                                wait_for_reply: bool = True, **kwargs: float):
@@ -275,7 +292,7 @@ class TigerController:
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def get_lower_travel_limit(self, *args: str):
         """Get the specified axes' lower travel limits in [mm] as a dict.
 
@@ -286,7 +303,7 @@ class TigerController:
         """
         return self._get_axis_value(Cmds.SETLOW, *args)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def reset_lower_travel_limits(self, *args: str,
                                   wait_for_output: bool = True,
                                   wait_for_reply: bool = True):
@@ -298,7 +315,7 @@ class TigerController:
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     @no_repeated_axis_check
     def set_upper_travel_limit(self, *args: str, wait_for_output: bool = True,
                                wait_for_reply: bool = True, **kwargs: float):
@@ -329,7 +346,7 @@ class TigerController:
                                            wait_for_output=wait_for_output,
                                            wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def get_upper_travel_limit(self, *args: str):
         """Get the specified axes' upper travel limits in [mm] as a dict.
 
@@ -340,7 +357,7 @@ class TigerController:
         """
         return self._get_axis_value(Cmds.SETUP, *args)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def reset_upper_travel_limits(self, *args: str,
                                   wait_for_output: bool = True,
                                   wait_for_reply: bool = True):
@@ -352,7 +369,7 @@ class TigerController:
                                    wait_for_output=wait_for_output,
                                    wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def set_axis_backlash(self, wait_for_output: bool = True,
                           wait_for_reply: bool = True, **kwargs: float):
         """Set the backlash compensation value for one or more axes.
@@ -404,7 +421,7 @@ class TigerController:
         axes_positions = [float(v) for v in reply.split()[1:]]
         return {k: v for k, v in zip(args, axes_positions)}
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def set_speed(self, wait_for_output: bool = True,
                   wait_for_reply: bool = True, **kwargs: float):
         """Set one or more axis speeds to a value in [mm/sec].
@@ -557,7 +574,7 @@ class TigerController:
         reply = self.send(cmd_str)
         return int(reply.split('=')[-1])
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def pm(self, wait_for_output=True, wait_for_reply=True,
            **kwargs: ControlMode):
         """Set internal or external, open or closed loop, axis control.
@@ -693,39 +710,299 @@ class TigerController:
         self.send(cmd_str, wait_for_output=wait_for_output,
                   wait_for_reply=wait_for_reply)
 
-    def ttl(self, in0_mode: int = None, out0_mode: int = None,
-            reverse_output_polarity: bool = False,
-            aux_io_state: int = None, aux_io_mask: int = None,
-            aux_io_mode: int = None,
-            wait_for_reply: bool = True, wait_for_output: bool = True):
-        """Setup ttl external IO modes or query state (no arguments).
+    def setup_array_scan(self,
+                         x_points: int = 0, delta_x_mm: float = 0,
+                         y_points: int = 0, delta_y_mm: float = 0,
+                         theta_deg: float = 0,
+                         x_start_mm: int = None,
+                         y_start_mm: int = None,
+                         card_address: int = None,
+                         wait_for_reply: bool = True,
+                         wait_for_output: bool = True):
+        """Configure Tiger-based grid-like array scan.
 
-        See `ASI TTL Implementation http://asiimaging.com/docs/commands/ttl`
-        for more details.
+        See ASI
+        `ARRAY Implementation <https://asiimaging.com/docs/commands/array>`_
+        and `supplement <https://asiimaging.com/docs/array>`_ for more details.
 
-        :param in0_mode: set TTL trigger mode when configured as input.
-        :param out0_mode:
-        :param reverse_output_polarity:
-        :param aux_io_state:
-        :param aux_io_mask:
-        :param aux_io_mode: Set what determines TTL value when set as outputs.
+        Note: Raster or Serpentine mode is determined from the :meth:`scan`
+        method.
+
+        Note: ASI docs recommend turning off backlash compensation on the scan
+        axes, which can be done by setting compensation to zero (per axis) via
+        the :meth:`set_axis_backlash` method.
+
+        :param x_points: number of x points to visit including the start
+            location. Zero if left unspecified.
+        :param delta_x_mm: spacing (in [mm]) between movements. Zero if left
+            unspecified.
+        :param y_points: number of y points to visit including the start
+            location. Zero if left unspecified.
+        :param delta_y_mm: spacing (in [mm]) between movements. Zero if left
+            unspecified.
+        :param theta_deg: rotation from the x axis in [degrees] to rotate the
+            array scan pivoting from the start position.
+        :param x_start_mm: starting x axis location in [mm]. Current x position
+            if left unspecified.
+        :param y_start_mm: starting y axis location in [mm]. Current y position
+            if left unspecified
+        :param card_address: The card hex address on which to specify the move.
+            If unspecified, defaults to the only card with an x and y axis or
+            throws a RuntimeError if multiple xy cards or no xy cards exist.
         :param wait_for_output: whether to wait for the message to exit the pc.
         :param wait_for_reply: whether to wait for the tigerbox to reply.
         """
-        # TODO range checks.
-        in0_str = f" X={in0_mode}" if in0_mode is not None else ""
-        out0_str = f" Y={out0_mode}" if out0_mode is not None else ""
-        auxstate_str = f" Z={aux_io_state}" if aux_io_state is not None else ""
-        polarity_str = f" F={-1 if reverse_output_polarity else 1}" \
+        # Infer address of the only card with an x and y axis if unspecified.
+        if card_address is None:
+            cards = {self.axis_to_card[x][0] for x in ['X', 'Y']}
+            if len(cards) != 1:
+                raise RuntimeError("Cannot infer the card address. It must be"
+                                   "specified explicitly.")
+            card_address = cards.pop()  # Get the only set item.
+        self._has_firmware(card_address, FirmwareModules.ARRAY_MODULE)
+        # Set start position.
+        start_position = {}
+        if x_start_mm is not None:
+            start_position['X'] = round(x_start_mm, MM_DECIMAL_PLACES)
+        if y_start_mm is not None:
+            start_position['Y'] = round(y_start_mm, MM_DECIMAL_PLACES)
+        self._set_cmd_args_and_kwds(Cmds.AHOME, **start_position,
+                                    card_address=card_address,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+        # Setup scan.
+        scan_params = {
+            'X': x_points,
+            'Y': y_points,
+            'Z': round(delta_x_mm, MM_DECIMAL_PLACES),
+            'F': round(delta_y_mm, MM_DECIMAL_PLACES),
+            'T': round(theta_deg, DEG_DECIMAL_PLACES)}
+        self._set_cmd_args_and_kwds(Cmds.ARRAY, **scan_params,
+                                    card_address=card_address,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+
+    def start_array_scan(self, card_address: int = None,
+                         wait_for_reply: bool = True,
+                         wait_for_output: bool = True):
+        """Start an array scan with parameters set by :meth:`setup_array_scan`.
+        Note that this command is not needed if the scan is setup for external
+        TTL pin triggering.
+        """
+        self._set_cmd_args_and_kwds(Cmds.ARRAY,
+                                    card_address=card_address,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+
+    def reset_ring_buffer(self, wait_for_reply: bool = True,
+                          wait_for_output: bool = True):
+        self.clear_ring_buffer(wait_for_reply=wait_for_reply,
+                               wait_for_output=wait_for_output)
+        self._rb_axes = []
+
+    def clear_ring_buffer(self, wait_for_reply: bool = True,
+                          wait_for_output: bool = True):
+        kwds = {'X': 0}
+        self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+
+    @axis_check('mode')
+    def setup_ring_buffer(self, *axes: str,
+                          mode: RingBufferMode = RingBufferMode.TTL,
+                          wait_for_reply: bool = True,
+                          wait_for_output: bool = False):
+        """Setup the ring buffer.
+
+        :param axes: any number of axis names which will be enabled to move
+            via moves queued into the ring buffer.
+        :param mode: ring buffer mode specified as a
+            :obj:`~tigerasi.device_codes.RingBufferMode` enum.
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+            by the PC.
+        """
+        # Enable the axes specified above to be movable from queued ring buffer
+        # moves.
+        axis_byte = 0
+        for axis in axes:
+            offset = self.ordered_axes.index(axis)
+            axis_byte |= (1 << offset)
+        axis_byte = axis_byte & 0xFFFF  # Fix axis byte to 32 bits wide.
+        # Save axes so we can autoconfigure set_ttl_pin_modes without
+        # specifying the card address.
+        self._rb_axes = [x for x in axes]
+        kwds = {'X': 0, 'Y': axis_byte, 'F': mode.value}  # X=0 clears ring buffer.
+        self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+
+    @axis_check('wait_for_reply', 'wait_for_output')
+    def queue_buffered_move(self, wait_for_reply: bool = True,
+                            wait_for_output: bool = True, **axes: float,):
+        """Push a move (relative or absolute depends on context) into the
+        ring buffer.
+
+        Note: if using TTL external input triggering, the TTL pin mode dictates
+        whether the moves are absolute or relative. Mode can be set via:
+        :meth:`set_ttl_pin_modes`.
+        :obj:`~tigerasi.device_codes.TTLIn0Mode.MOVE_TO_NEXT_ABS_POSITION`
+        will interpret stored moves in the buffer as absolute moves while
+        :obj:`~tigerasi.device_codes.TTLIn0Mode.MOVE_TO_NEXT_REL_POSITION`
+        will interpret stored moves in the buffer as relative moves.
+
+        Note: the 'axis_byte' parameter must be set correctly such that the
+        axes specified in the move are enabled to move.
+
+        :param axes: one or more axes specified by name where the value is
+            the absolute position (in steps) to move to.
+        :param wait_for_output: wait until all outgoing bytes exit the PC.
+        :param wait_for_reply: wait until at least one line has been read in
+            by the PC.
+        """
+        self._set_cmd_args_and_kwds(Cmds.LOAD, **axes,
+                                    wait_for_reply=wait_for_reply,
+                                    wait_for_output=wait_for_output)
+
+    def set_ttl_pin_modes(self, in0_mode: TTLIn0Mode = None,
+                          out0_mode: TTLOut0Mode = None,
+                          reverse_output_polarity: bool = False,
+                          aux_io_state: int = None,
+                          aux_io_mask: int = None,
+                          aux_io_mode: int = None,
+                          card_address: int = None,
+                          wait_for_reply: bool = True,
+                          wait_for_output: bool = True):
+        """Setup ttl external IO modes or query the external output state
+        (if the card specified without any additional arguments).
+
+        See `ASI TTL Implementation <http://asiimaging.com/docs/commands/ttl>`_
+        for more details.
+
+        :param in0_mode: Set behavior of "IN" external TTL input pin.
+            Optional if `in0_mode` is set to
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.REPEAT_LAST_MOVE`.
+        :param out0_mode: Set behavior of "OUT" external TTL output pin.
+            Optional if `in0_mode` is set to
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.REPEAT_LAST_MOVE`.
+        :param reverse_output_polarity: bool. If True, output goes logic low
+            when the output is asserted. Optional. Defaults to False.
+        :param aux_io_state: Set to 0 if unused. Retains previous value if left
+            unspecified. See ASI docs.
+        :param aux_io_mask: Set to 0 if unused. Retains previous value if left
+            unspecified. See ASI docs.
+        :param aux_io_mode: Set what determines TTL value when set as outputs.
+            Set to 0 if unused. Retains previous value if left unspecified.
+            See ASI docs.
+        :param card_address: The card hex address for which to apply the
+            settings. Optional if `in0_mode` is set to
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.REPEAT_LAST_MOVE`,
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.ARRAY_MODE_MOVE_TO_NEXT_POSITION`,
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.MOVE_TO_NEXT_ABS_POSITION`,
+            or
+            :obj:`~tigerasi.device_codes.TTLIn0Mode.MOVE_TO_NEXT_REL_POSITION`.
+        :param wait_for_output: whether to wait for the message to exit the pc.
+            Optional.
+        :param wait_for_reply: whether to wait for the tigerbox to reply.
+            Optional.
+
+        .. code-block:: python
+
+            from tiger_controller.device_codes import TTLIN0Mode as IN0Mode
+            from tiger_controller.device_codes import TTLOUT0Mode as OUT0Mode
+
+            # Make the input ttl pin repeat the last move.
+            box.set_ttl_pin_modes(In0Mode.REPEAT_LAST_REL_MOVE,
+                                  Out0Mode.PULSE_AFTER_MOVING,
+                                  reverse_output_polarity=True)
+
+            # OR: make the input ttl pin trigger a predefined ARRAY movement.
+            box.set_ttl_pin_modes(IN0Mode.ARRAY_MODE_MOVE_TO_NEXT_POSITION,
+                                  Out0Mode.PULSE_AFTER_MOVING,
+                                  aux_io_state = 0, aux_io_mask = 0, aux_io_mode = 0)
+
+        """
+        in0_str = f" X={in0_mode.value} " if in0_mode is not None else ""
+        out0_str = f" Y={out0_mode.value} " if out0_mode is not None else ""
+        auxstate_str = f" Z={aux_io_state} " if aux_io_state is not None else ""
+        polarity_str = f" F={-1 if reverse_output_polarity else 1} " \
             if reverse_output_polarity is not None else ""
-        auxmask_str = f" R={aux_io_mask}" if aux_io_mask is not None else ""
-        auxmode_str = f" T={aux_io_mode}" if aux_io_mode is not None else ""
+        auxmask_str = f" R={aux_io_mask} " if aux_io_mask is not None else ""
+        auxmode_str = f" T={aux_io_mode} " if aux_io_mode is not None else ""
         # Aggregate specified params.
         param_str = f"{in0_str}{out0_str}{auxstate_str}{polarity_str}" \
-                    f"{auxmask_str}{auxmode_str}"
-        cmd_str = Cmds.TTL.value + param_str + '\r'
-        self.send(cmd_str, wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+                    f"{auxmask_str}{auxmode_str}".rstrip()
+        # Infer address of card or cards for a repeated move.
+        if in0_mode == TTLIn0Mode.REPEAT_LAST_REL_MOVE and card_address is None:
+            cards = {self.axis_to_card[x][0] for x in self._last_rel_move_axes}
+            if not cards:
+                raise RuntimeError("Cannot infer card address to configure "
+                                   "device to repeat the last relative move "
+                                   "when no previous relative move has been "
+                                   "issued.")
+            for card in cards:  # apply settings to each card.
+                self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
+                                            card_address=card,
+                                            wait_for_output=wait_for_output,
+                                            wait_for_reply=wait_for_reply)
+        # Infer card address(es) for ring buffer axis moves if it was setup.
+        elif in0_mode in [TTLIn0Mode.MOVE_TO_NEXT_REL_POSITION,
+                          TTLIn0Mode.MOVE_TO_NEXT_ABS_POSITION] \
+                and card_address is None:
+            if len(self._rb_axes) == 0:
+                raise RuntimeError("Cannot infer the card address(es). "
+                                   "Ring Buffer has not yet been setup.")
+            cards = {self.axis_to_card[x][0] for x in self._rb_axes}
+            for card in cards:  # apply settings to each card.
+                self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
+                                            card_address=card,
+                                            wait_for_output=wait_for_output,
+                                            wait_for_reply=wait_for_reply)
+        # Get the XY axis card for this setup since array scanning axes can't
+        # be changed.
+        elif in0_mode == TTLIn0Mode.ARRAY_MODE_MOVE_TO_NEXT_POSITION \
+                and card_address is None:
+            # Fetch card with the XY axes on it. Ensure there is only one.
+            cards = {self.axis_to_card[x][0] for x in ['X', 'Y']}
+            if len(cards) != 1:
+                raise RuntimeError("Cannot infer the card address of the "
+                                   "X and Y axes. card_address must be "
+                                   "explicitly specified.")
+            card = cards.pop()  # Get the only set item.
+            self._has_firmware(card, FirmwareModules.ARRAY_MODULE)
+            self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
+                                        card_address=card,
+                                        wait_for_reply=wait_for_reply,
+                                        wait_for_output=wait_for_output)
+        # Default case: card address must be explicitly specified.
+        else:
+            if card_address is None:
+                raise RuntimeError("Cannot infer the card address of the "
+                                   "X and Y axes. card_address must be "
+                                   "explicitly specified.")
+            else:
+                self._set_cmd_args_and_kwds(Cmds.TTL, param_str,
+                                            card_address=card_address,
+                                            wait_for_output=wait_for_output,
+                                            wait_for_reply=wait_for_reply)
+
+    def get_ttl_pin_modes(self, card_address: int,
+                          wait_for_reply: bool = True,
+                          wait_for_output: bool = True):
+        """Get the current TTL settings for a particular card."""
+        param_query_str = "X? Y? Z? F? R? T?"
+        return self._set_cmd_args_and_kwds(Cmds.TTL, param_query_str,
+                                           card_address=card_address,
+                                           wait_for_reply=wait_for_reply,
+                                           wait_for_output=wait_for_output)
+
+    def get_ttl_output_state(self, wait_for_reply: bool = True,
+                             wait_for_output: bool = True):
+        """Return the current state of the TTL output pin."""
+        reply = self._set_cmd_args_and_kwds(Cmds.TTL,
+                                            wait_for_reply=wait_for_reply,
+                                            wait_for_output=wait_for_output)
+        return bool(int(reply.lstrip(':A ')))
 
     def is_moving(self):
         """blocks. True if any axes is moving. False otherwise."""
@@ -872,6 +1149,7 @@ class TigerController:
     def _set_cmd_args_and_kwds(self, cmd: Cmds, *args: str,
                                wait_for_output: bool = True,
                                wait_for_reply: bool = True,
+                               card_address: int = None,
                                **kwargs: Union[float, int]):
         """Flag a parameter or set a parameter with a specified value.
 
@@ -882,9 +1160,10 @@ class TigerController:
             box._set_cmd_args_and_kwds(Cmds.SETHOME, y=10, z=20.5)
 
         """
+        card_addr_str = f"{card_address}" if card_address is not None else ""
         args_str = " ".join([f"{a.upper()}" for a in args])
         kwds_str = " ".join([f"{a.upper()}={v}" for a, v in kwargs.items()])
-        cmd_str = f"{cmd.value} {args_str} {kwds_str}\r"
+        cmd_str = f"{card_addr_str}{cmd.value} {args_str} {kwds_str}\r"
         return self.send(cmd_str, wait_for_output=wait_for_output,
                          wait_for_reply=wait_for_reply)
 
@@ -901,6 +1180,35 @@ class TigerController:
         reply = self.send(cmd_str).split()[1:]  # Trim the acknowledgement part
         axis_val_tuples = [c.split("=") for c in reply]
         return {w[0].upper(): float(w[1]) for w in axis_val_tuples}
+
+    def _get_card_modules(self, card_address):
+        modules = []
+        reply = self._set_cmd_args_and_kwds(Cmds.BUILD_X,
+                                            card_address=card_address)
+        for line in reply.split('\r'):
+            # modules are specified in all-caps. Other lines can be ignored.
+            if line != line.upper():
+                continue
+            modules.append(line)
+        return modules
+
+    def _has_firmware(self, card_address, *modules: FirmwareModules):
+        """Raise RuntimeError if the specified card does not have the specified
+        firmware.
+
+        :param card_address: the card hex address.
+        :param *modules: any number of modules specified as
+            :obj:`~tigerasi.device_codes.FirmwareModules`.
+        """
+        missing_modules = []
+        for module in modules:
+            if module.value not in self._card_modules[card_address]:
+                missing_modules.append(module.value)
+        if len(missing_modules):
+            raise RuntimeError(f"Error: card 0x{card_address} cannot execute "
+                               f"the specified command because it is missing "
+                               f"the following firmware modules: "
+                               f"{missing_modules}")
 
     @staticmethod
     def check_reply_for_errors(reply: str):
