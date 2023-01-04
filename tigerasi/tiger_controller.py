@@ -590,11 +590,10 @@ class TigerController:
         external TTL input port on the device hardware.
 
         :param axes: one or more axis control modes specified by key where the
-            values are either a string, int, or one of these four enum types:
+            values are either a string, int, or one of these three enum types:
             :obj:`~tigerasi.device_codes.MicroMirrorControlMode`,
-            :obj:`~tigerasi.device_codes.PiezoControlMode`,
-            :obj:`~tigerasi.device_codes.TunableLensControlMode`, or
-            :obj:`~tigerasi.device_codes.GalvoControlMode`.
+            :obj:`~tigerasi.device_codes.PiezoControlMode`, or
+            :obj:`~tigerasi.device_codes.TunableLensControlMode`.
         """
         axes = {x: v.value if isinstance(v, Enum) else str(v)
                 for x, v in axes.items()}  # Convert keyword values to strings.
