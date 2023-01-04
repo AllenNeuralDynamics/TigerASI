@@ -223,7 +223,8 @@ class TigerController:
         return self._get_axis_value(Cmds.SETHOME, *args)
 
     @axis_check('wait_for_reply', 'wait_for_output')
-    def zero_in_place(self, *args: str):
+    def zero_in_place(self, *args: str, wait_for_reply: bool = True,
+                      wait_for_output: bool = True):
         """Zero out the specified axes.
         (i.e: Set the specified axes current location to zero.)
 
@@ -242,7 +243,8 @@ class TigerController:
             args = [ax for ax in self.ordered_axes if not ax.isnumeric()]
         for axis in args:
             axis_positions[axis] = 0
-        self.set_position(**axis_positions)
+        self.set_position(**axis_positions, wait_for_reply=wait_for_reply,
+                          wait_for_output=wait_for_output)
 
     @axis_check('wait_for_reply', 'wait_for_output')
     def set_position(self, wait_for_output: bool = True,

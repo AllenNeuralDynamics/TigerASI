@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """TigerController Simulated Abstraction"""
-from serial import SerialException
 from .device_codes import *
 from .tiger_controller import axis_check
-from enum import Enum
 
 # TODO: consider mocking the serial port directly OR
 #   consider mocking the replies.
@@ -18,7 +16,8 @@ class TigerController:
     BAUD_RATE = 115200
     TIMEOUT = 5
 
-    def __init__(self, com_port, build_config={'Motor Axes': ['X', 'Y', 'Z', 'M', 'N']}):
+    def __init__(self, com_port,
+                 build_config={'Motor Axes': ['X', 'Y', 'Z', 'M', 'N']}):
         self.ser = None
         self.skipped_replies = 0
         self.ser = None
@@ -31,7 +30,7 @@ class TigerController:
         self.sim_positions = {ax.lower(): 0 for ax in self.axes}
 
     # High-Level Commands
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """move the axes specified in kwargs by a relative amount.
@@ -42,7 +41,7 @@ class TigerController:
             self.sim_positions[key.lower()] += val
         # TODO; add some sleeping here.
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """move the axes specified in kwargs by the specified absolute amount (in tenths of microns)."""
@@ -51,7 +50,7 @@ class TigerController:
             self.sim_positions[key.lower()] = val
         # TODO; add some sleeping here.
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def zero_in_place(self, *args: str):
         """Zero out the specified axes"""
         axis_positions = {}
@@ -62,7 +61,7 @@ class TigerController:
             axis_positions[axis] = 0
         self.set_position(**axis_positions)
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def set_position(self, **kwargs: float):
         """Set the specified axes to the specified positions."""
         axes_str = ""
@@ -73,7 +72,7 @@ class TigerController:
     def set_axis_backlash(self, **kwargs: float):
         pass
 
-    @axis_check
+    @axis_check('wait_for_reply', 'wait_for_output')
     def get_position(self, *args: str):
         """return the controller's locations.
 
@@ -117,6 +116,32 @@ class TigerController:
              'Motor Axes': ['X', 'Y', 'Z', etc]}
         """
         return self.build_config
+
+    @axis_check('mode')
+    def setup_ring_buffer(self, *axes: str,
+                          mode: RingBufferMode = RingBufferMode.TTL,
+                          wait_for_reply: bool = True,
+                          wait_for_output: bool = False):
+        pass
+
+    def reset_ring_buffer(self):
+        pass
+
+    @axis_check('wait_for_reply', 'wait_for_output')
+    def queue_buffered_move(self, wait_for_reply: bool = True,
+                            wait_for_output: bool = True, **axes: float,):
+        pass
+
+    def set_ttl_pin_modes(self, in0_mode: TTLIn0Mode = None,
+                          out0_mode: TTLOut0Mode = None,
+                          reverse_output_polarity: bool = False,
+                          aux_io_state: int = None,
+                          aux_io_mask: int = None,
+                          aux_io_mode: int = None,
+                          card_address: int = None,
+                          wait_for_reply: bool = True,
+                          wait_for_output: bool = True):
+        pass
 
     def clear_incoming_message_queue(self):
         """Clear input buffer and reset skipped replies."""
