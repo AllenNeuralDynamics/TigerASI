@@ -560,36 +560,34 @@ class TigerController:
         return int(reply.split('=')[-1])
 
     @axis_check('wait_for_reply', 'wait_for_output')
-    def pm(self, wait_for_output=True, wait_for_reply=True,
-           **kwargs: ControlMode):
+    def set_axis_control_mode(self, wait_for_output=True, wait_for_reply=True,
+           **axes: ControlMode):
         """Set internal or external, open or closed loop, axis control.
 
         Setting an axis to external control enables control from the external
         TTL input port on the device hardware.
 
-        :param kwargs: one or more axes specified by key where the values are
+        :param axes: one or more axes specified by key where the values are
             :obj:`~tigerasi.device_codes.ControlMode` enums.
         """
-        axes_str = ""
-        for axis, ctrl_mode in kwargs.items():
-            axes_str += f" {axis.upper()}={ctrl_mode.value}"
-        cmd_str = Cmds.PM.value + axes_str + '\r'
-        self.send(cmd_str, wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+        axes = {x: v.value for x, v in axes.items()}  # Convert to strings.
+        self._set_cmd_args_and_kwds(Cmds.PM, **axes,
+                                    wait_for_output=wait_for_output,
+                                    wait_for_reply=wait_for_reply)
 
     @axis_check('wait_for_reply', 'wait_for_output')
-    def get_pm(self, axis: str):
-        """Get axis control mode.
+    def get_axis_control_mode(self, axis: str):
+        """Get axis control mode. Implements
+        `PM <http://asiimaging.com/docs/commands/pm>`_ command.
 
         :param axis: the axis of interest.
          :return: control mode of the specified axis.
         """
-        cmd_str = Cmds.PM.value + f" {axis.upper()}?" + '\r'
-        reply = self.send(cmd_str)
+        reply = self._set_cmd_args_and_kwds(Cmds.PM, axis)
         # example reply appears as 'V=1 :A'
         # assume control mode is a single digit
         control_num = reply[reply.find(axis)+2]
-        return ControlMode(int(control_num))
+        return ControlMode(control_num)
 
     def start_scan(self, wait_for_output=True, wait_for_reply=True):
         #TODO: Figure out how to make command below work
@@ -822,7 +820,8 @@ class TigerController:
 
     @axis_check('wait_for_reply', 'wait_for_output')
     def get_info(self, axis: str):
-        """Get the hardware's axis info for a given axis.
+        """Get the hardware's axis info for a given axis. Implements
+        `INFO https://asiimaging.com/docs/commands/info`_ command.
 
         :param axis: the axis of interest.
         :return: the axis info of the specified axis.
@@ -852,21 +851,17 @@ class TigerController:
         :param axis: the axis of interest.
         :return: etl temperature of the specified axis.
         """
-        # enforce axis type for etl = 'b'
-        assert self.axis_to_type[axis] == 'b', \
-            f"Error. Axis '{axis.upper()}' is not an ETL"
+        # enforce axis type for etl
+        if self.axis_to_type[axis] != 'b':
+            raise SyntaxError(f"Error. Axis '{axis}' is not an ETL")
         # get initial control mode
-        ctrl_mode = self.get_pm(axis)
-        # must set to internal mode to read temperature
-        cmd_str = Cmds.PM.value + f" {axis.upper()}={ControlMode.INTERNAL_OPEN_LOOP.value}" + '\r'
-        self.send(cmd_str, wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+        ctrl_mode = self.get_axis_control_mode(axis)
+        # must set to internal mode to read temperature. must wait for reply.
+        self.set_axis_control_mode(**{axis: ControlMode.INTERNAL_OPEN_LOOP})
         # get pzinfo
         reply = self.get_pzinfo(self.axis_to_card[axis][0])
-        # return control mode to initial value
-        cmd_str = Cmds.PM.value + f" {axis.upper()}={ctrl_mode.value}" + '\r'
-        self.send(cmd_str, wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+        # return control mode to initial value. must wait
+        self.set_axis_control_mode(**{axis: ctrl_mode})
         # parse temperature from response
         # example line looks like:
         # 'V Mode[IN],Tc[21.250],TCOMP[ON]'

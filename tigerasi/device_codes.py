@@ -90,10 +90,10 @@ class ScanPattern(Enum):
 
 
 class ControlMode(Enum):
-    INTERNAL_CLOSED_LOOP = 0
-    EXTERNAL_CLOSED_LOOP = 1
-    INTERNAL_OPEN_LOOP = 2
-    EXTERNAL_OPEN_LOOP = 3
+    INTERNAL_CLOSED_LOOP = "0"
+    EXTERNAL_CLOSED_LOOP = "1"
+    INTERNAL_OPEN_LOOP = "2"
+    EXTERNAL_OPEN_LOOP = "3"
 
 
 class JoystickPolarity(Enum):
