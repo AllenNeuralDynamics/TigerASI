@@ -2,6 +2,7 @@
 """TigerController Device Codes"""
 from enum import Enum
 
+ACK = ":A"  # device acknowledgment for some axis-specific commands.
 
 class Cmds(Enum):
     # Common commands in bytes form.

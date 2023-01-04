@@ -14,8 +14,9 @@ ordered_axes = build_config['Motor Axes']
 settings = {}
 for axis in ordered_axes:
     axis_settings = box.get_info(axis)
+    print(f"Axis: {axis}")
     pprint.pprint(axis_settings)
-    settings[f'{axis} Axis']=axis_settings
+    settings[f'{axis} Axis'] = axis_settings
 
 with open("tiger_settings.json", "w") as outfile:
     json.dump(settings, outfile, indent=4)

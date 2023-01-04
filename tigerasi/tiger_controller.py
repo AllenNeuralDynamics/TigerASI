@@ -580,6 +580,7 @@ class TigerController:
     def set_axis_control_mode(self, wait_for_output=True, wait_for_reply=True,
            **axes: ControlMode):
         """Set internal or external, open or closed loop, axis control.
+        Implements `PM <http://asiimaging.com/docs/commands/pm>`_ command.
 
         Setting an axis to external control enables control from the external
         TTL input port on the device hardware.
@@ -600,10 +601,9 @@ class TigerController:
         :param axis: the axis of interest.
          :return: control mode of the specified axis.
         """
-        reply = self._set_cmd_args_and_kwds(Cmds.PM, axis)
         # example reply appears as 'V=1 :A'
         # assume control mode is a single digit
-        control_num = reply[reply.find(axis)+2]
+        control_num = str(int(self._get_axis_value(Cmds.PM, axis)[axis]))
         return ControlMode(control_num)
 
     def start_scan(self, wait_for_output=True, wait_for_reply=True):
@@ -662,7 +662,7 @@ class TigerController:
         """Setup the slow scanning axis.
 
         Behavior is equivalent to:
-        :python:``numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)``.
+        ``numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)``.
 
         See ASI
         `SCANV Implementation <http://asiimaging.com/docs/commands/scanv>`_
@@ -1051,7 +1051,6 @@ class TigerController:
     def send(self, cmd_str: str, read_until: str = "\r\n",
              wait_for_output=True, wait_for_reply=True):
         """Send a command; optionally wait for various conditions.
-
         :param cmd_str: command string with parameters and the proper line
             termination (usually '\r') to send to the tiger controller.
         :param read_until: the specific string to read until when reading back
@@ -1098,13 +1097,13 @@ class TigerController:
     @axis_check('wait_for_reply', 'wait_for_output')
     def get_info(self, axis: str):
         """Get the hardware's axis info for a given axis. Implements
-        `INFO https://asiimaging.com/docs/commands/info`_ command.
+        `INFO <https://asiimaging.com/docs/commands/info>`_ command.
 
         :param axis: the axis of interest.
         :return: the axis info of the specified axis.
         """
         cmd_str = Cmds.INFO.value + f" {axis.upper()}" + '\r'
-        reply = self.send(cmd_str)
+        reply = self.send(cmd_str).strip('\r\n')
         # Reply is formatted in such a way that it can be put into dict form.
         # but reply is in lines with two columns
         # first column ends at index GET_INFO_STRING_SPLIT consistently
@@ -1115,9 +1114,9 @@ class TigerController:
             cols.append(line[GET_INFO_STRING_SPLIT:len(line)])
             for col in cols:
                 words = col.split(':')
-                if len(words) == 2:
-                    val = words[1].split()
-                    dict_reply[" ".join(words[0].split())] = val
+                if len(words) == 2:  # skip eeprom
+                    val = " ".join(words[1].split())  # remove redundant space.
+                    dict_reply[words[0].strip(' ')] = val
         return dict_reply
 
     @axis_check('wait_for_reply', 'wait_for_output')
@@ -1264,7 +1263,9 @@ class TigerController:
         """
         axes_str = " ".join([f"{a.upper()}?" for a in args])
         cmd_str = f"{cmd.value} {axes_str}\r"
-        reply = self.send(cmd_str).split()[1:]  # Trim the acknowledgement part
+        # Trim the acknowledgement part of the response, which could show up at
+        # the beginning or end, depending on the command.
+        reply = self.send(cmd_str).rstrip("\r\n").strip(ACK).split()
         axis_val_tuples = [c.split("=") for c in reply]
         return {w[0].upper(): float(w[1]) for w in axis_val_tuples}
 
