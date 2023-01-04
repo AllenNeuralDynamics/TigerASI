@@ -99,11 +99,23 @@ class ScanPattern(Enum):
     SERPENTINE = 1
 
 
-class ControlMode(Enum):
+class MicroMirrorControlMode(Enum):
+    INTERNAL_INPUT = "0"
+    EXTERNAL_INPUT = "1"
+
+class PiezoControlMode(Enum):
     INTERNAL_CLOSED_LOOP = "0"
     EXTERNAL_CLOSED_LOOP = "1"
     INTERNAL_OPEN_LOOP = "2"
     EXTERNAL_OPEN_LOOP = "3"
+    FAST = "+"
+    SLOW = "-"
+
+
+class TunableLensControlMode(Enum):
+    TG1000_INPUT_NO_TEMP_COMPENSATION = "0"
+    EXTERNAL_INPUT_NO_TEMP_COMPENSATION = "1"
+    TG1000_INPUT_WITH_TEMP_COMPENSATION = "2"
 
 
 class JoystickPolarity(Enum):

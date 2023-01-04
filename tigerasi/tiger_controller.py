@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
+from enum import Enum
 from serial import Serial, SerialException
 from functools import cache, wraps
 from time import sleep, perf_counter
@@ -580,17 +581,24 @@ class TigerController:
 
     @axis_check('wait_for_reply', 'wait_for_output')
     def set_axis_control_mode(self, wait_for_output=True, wait_for_reply=True,
-           **axes: ControlMode):
-        """Set internal or external, open or closed loop, axis control.
+           **axes: Union[MicroMirrorControlMode, PiezoControlMode,
+                         TunableLensControlMode, int, str]):
+        """Set an axis to a particular control mode.
         Implements `PM <http://asiimaging.com/docs/commands/pm>`_ command.
 
-        Setting an axis to external control enables control from the external
-        TTL input port on the device hardware.
+        Note: Setting an axis to external control enables control from the
+        external TTL input port on the device hardware.
 
-        :param axes: one or more axes specified by key where the values are
-            :obj:`~tigerasi.device_codes.ControlMode` enums.
+        :param axes: one or more axis control modes specified by key where the
+            values are either a string, int, or one of these four enum types:
+            :obj:`~tigerasi.device_codes.MicroMirrorControlMode`,
+            :obj:`~tigerasi.device_codes.PiezoControlMode`,
+            :obj:`~tigerasi.device_codes.TunableLensControlMode`, or
+            :obj:`~tigerasi.device_codes.GalvoControlMode`.
         """
-        axes = {x: v.value for x, v in axes.items()}  # Convert to strings.
+        axes = {x: v.value if isinstance(v, Enum) else str(v)
+                for x, v in axes.items()}  # Convert keyword values to strings.
+
         self._set_cmd_args_and_kwds(Cmds.PM, **axes,
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
@@ -601,12 +609,13 @@ class TigerController:
         `PM <http://asiimaging.com/docs/commands/pm>`_ command.
 
         :param axis: the axis of interest.
-         :return: control mode of the specified axis.
+         :return: control mode (as a string) of the specified axis.
         """
         # example reply appears as 'V=1 :A'
         # assume control mode is a single digit
         control_num = str(int(self._get_axis_value(Cmds.PM, axis)[axis]))
-        return ControlMode(control_num)
+        # TODO: figure out which axis type it is and return that type of enum.
+        return control_num
 
     def start_scan(self, wait_for_output=True, wait_for_reply=True):
         #TODO: Figure out how to make command below work
@@ -1133,9 +1142,10 @@ class TigerController:
         if self.axis_to_type[axis] != 'b':
             raise SyntaxError(f"Error. Axis '{axis}' is not an ETL")
         # get initial control mode
-        ctrl_mode = self.get_axis_control_mode(axis)
+        ctrl_mode = TunableLensControlMode(self.get_axis_control_mode(axis))
         # must set to internal mode to read temperature. must wait for reply.
-        self.set_axis_control_mode(**{axis: ControlMode.INTERNAL_OPEN_LOOP})
+        self.set_axis_control_mode(
+            **{axis: TunableLensControlMode.TG1000_INPUT_WITH_TEMP_COMPENSATION})
         # get pzinfo
         reply = self.get_pzinfo(self.axis_to_card[axis][0])
         # return control mode to initial value. must wait
