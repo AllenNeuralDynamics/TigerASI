@@ -13,6 +13,7 @@ MM_DECIMAL_PLACES = 4
 DEG_DECIMAL_PLACES = 3
 REPLY_WAIT_TIME_S = 0.020  # minimum time to wait for a reply after having
                            # sent a command.
+GET_INFO_STRING_SPLIT = 33 # index to split get info string reply
 
 
 # Decorators
@@ -89,6 +90,7 @@ class TigerController:
         build_config = self.get_build_config()
         self.ordered_axes = build_config['Motor Axes']
         self.axis_to_card = self._get_axis_to_card_mapping(build_config)
+        self.axis_to_type = self._get_axis_to_type_mapping(build_config)
         # Cache a list of firmware modules keyed by card address.
         self._card_modules = {self.axis_to_card[x][0]:
                               self._get_card_modules(self.axis_to_card[x][0])
@@ -575,22 +577,34 @@ class TigerController:
         return int(reply.split('=')[-1])
 
     @axis_check('wait_for_reply', 'wait_for_output')
-    def pm(self, wait_for_output=True, wait_for_reply=True,
-           **kwargs: ControlMode):
+    def set_axis_control_mode(self, wait_for_output=True, wait_for_reply=True,
+           **axes: ControlMode):
         """Set internal or external, open or closed loop, axis control.
+        Implements `PM <http://asiimaging.com/docs/commands/pm>`_ command.
 
         Setting an axis to external control enables control from the external
         TTL input port on the device hardware.
 
-        :param kwargs: one or more axes specified by key where the values are
+        :param axes: one or more axes specified by key where the values are
             :obj:`~tigerasi.device_codes.ControlMode` enums.
         """
-        axes_str = ""
-        for axis, ctrl_mode in kwargs.items():
-            axes_str += f" {axis.upper()}={ctrl_mode.value}"
-        cmd_str = Cmds.PM.value + axes_str + '\r'
-        self.send(cmd_str, wait_for_output=wait_for_output,
-                  wait_for_reply=wait_for_reply)
+        axes = {x: v.value for x, v in axes.items()}  # Convert to strings.
+        self._set_cmd_args_and_kwds(Cmds.PM, **axes,
+                                    wait_for_output=wait_for_output,
+                                    wait_for_reply=wait_for_reply)
+
+    @axis_check('wait_for_reply', 'wait_for_output')
+    def get_axis_control_mode(self, axis: str):
+        """Get axis control mode. Implements
+        `PM <http://asiimaging.com/docs/commands/pm>`_ command.
+
+        :param axis: the axis of interest.
+         :return: control mode of the specified axis.
+        """
+        # example reply appears as 'V=1 :A'
+        # assume control mode is a single digit
+        control_num = str(int(self._get_axis_value(Cmds.PM, axis)[axis]))
+        return ControlMode(control_num)
 
     def start_scan(self, wait_for_output=True, wait_for_reply=True):
         #TODO: Figure out how to make command below work
@@ -648,7 +662,7 @@ class TigerController:
         """Setup the slow scanning axis.
 
         Behavior is equivalent to:
-        :python:``numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)``.
+        ``numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)``.
 
         See ASI
         `SCANV Implementation <http://asiimaging.com/docs/commands/scanv>`_
@@ -1037,7 +1051,6 @@ class TigerController:
     def send(self, cmd_str: str, read_until: str = "\r\n",
              wait_for_output=True, wait_for_reply=True):
         """Send a command; optionally wait for various conditions.
-
         :param cmd_str: command string with parameters and the proper line
             termination (usually '\r') to send to the tiger controller.
         :param read_until: the specific string to read until when reading back
@@ -1081,6 +1094,59 @@ class TigerController:
                 break
         return reply
 
+    @axis_check('wait_for_reply', 'wait_for_output')
+    def get_info(self, axis: str):
+        """Get the hardware's axis info for a given axis. Implements
+        `INFO <https://asiimaging.com/docs/commands/info>`_ command.
+
+        :param axis: the axis of interest.
+        :return: the axis info of the specified axis.
+        """
+        cmd_str = Cmds.INFO.value + f" {axis.upper()}" + '\r'
+        reply = self.send(cmd_str).strip('\r\n')
+        # Reply is formatted in such a way that it can be put into dict form.
+        # but reply is in lines with two columns
+        # first column ends at index GET_INFO_STRING_SPLIT consistently
+        dict_reply = {}
+        for line in reply.split('\r'):
+            cols = []
+            cols.append(line[0:GET_INFO_STRING_SPLIT])
+            cols.append(line[GET_INFO_STRING_SPLIT:len(line)])
+            for col in cols:
+                words = col.split(':')
+                if len(words) == 2:  # skip eeprom
+                    val = " ".join(words[1].split())  # remove redundant space.
+                    dict_reply[words[0].strip(' ')] = val
+        return dict_reply
+
+    @axis_check('wait_for_reply', 'wait_for_output')
+    def get_etl_temp(self, axis: str,
+                     wait_for_output=True, wait_for_reply=True):
+        """Get the etl temperature for a given axis.
+
+        :param axis: the axis of interest.
+        :return: etl temperature of the specified axis.
+        """
+        # enforce axis type for etl
+        if self.axis_to_type[axis] != 'b':
+            raise SyntaxError(f"Error. Axis '{axis}' is not an ETL")
+        # get initial control mode
+        ctrl_mode = self.get_axis_control_mode(axis)
+        # must set to internal mode to read temperature. must wait for reply.
+        self.set_axis_control_mode(**{axis: ControlMode.INTERNAL_OPEN_LOOP})
+        # get pzinfo
+        reply = self.get_pzinfo(self.axis_to_card[axis][0])
+        # return control mode to initial value. must wait
+        self.set_axis_control_mode(**{axis: ctrl_mode})
+        # parse temperature from response
+        # example line looks like:
+        # 'V Mode[IN],Tc[21.250],TCOMP[ON]'
+        for line in reply.split('\r'):
+            if line.find('TCOMP[ON]') != -1:
+                words = line.split(',')[1]
+                temp = words[words.find('[')+1:words.find(']')]
+        return temp
+
     def get_build_config(self):
         """return the configuration of the Tiger Controller.
 
@@ -1104,7 +1170,7 @@ class TigerController:
         """parse a build configuration dict to get axis-to-card relationship.
 
         :return: a dict that looks like
-            ``{<axis>: (<hex_address>, <card_index)), etc.}``
+            ``{<axis>: (<hex_address>, <card_index>)), etc.}``
 
         .. code-block:: python
 
@@ -1122,6 +1188,27 @@ class TigerController:
             curr_card_index[hex_addr] = card_index + 1
         return axis_to_card
 
+    @staticmethod
+    def _get_axis_to_type_mapping(build_config: dict):
+        """parse a build configuration dict to get axis-to-type relationship.
+
+        :return: a dict that looks like
+            ``{<axis>: <type>), etc.}``
+
+        .. code-block:: python
+
+            # return type looks like:
+            {'X': 'X',
+             'V': 'b'}
+
+        """
+        axis_to_type = {}
+        curr_card_index = {c: 0 for c in set(build_config['Axis Types'])}
+        for axis, axis_type in zip(build_config['Motor Axes'],
+                                  build_config['Axis Types']):
+            axis_to_type[axis] = axis_type
+        return axis_to_type
+
     def get_pzinfo(self, card_address):
         """return the configuration of the specified card.
 
@@ -1129,8 +1216,7 @@ class TigerController:
         """
         cmd_str = str(card_address) + Cmds.PZINFO.value + '\r'
         reply = self.send(cmd_str)
-        # note: reply is not formatted to dict
-        return self._reply_split(reply)
+        return reply
 
     def _order_axes(self, axes: tuple[str]) -> list[str]:
         """return axes in the order they are received in replies from tigerbox.
@@ -1177,7 +1263,9 @@ class TigerController:
         """
         axes_str = " ".join([f"{a.upper()}?" for a in args])
         cmd_str = f"{cmd.value} {axes_str}\r"
-        reply = self.send(cmd_str).split()[1:]  # Trim the acknowledgement part
+        # Trim the acknowledgement part of the response, which could show up at
+        # the beginning or end, depending on the command.
+        reply = self.send(cmd_str).rstrip("\r\n").strip(ACK).split()
         axis_val_tuples = [c.split("=") for c in reply]
         return {w[0].upper(): float(w[1]) for w in axis_val_tuples}
 

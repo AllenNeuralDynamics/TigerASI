@@ -2,6 +2,7 @@
 """TigerController Device Codes"""
 from enum import Enum
 
+ACK = ":A"  # device acknowledgment for some axis-specific commands.
 
 class Cmds(Enum):
     # Common commands in bytes form.
@@ -34,6 +35,7 @@ class Cmds(Enum):
     PM = "PM" # PM [axis]=[0 or 1] for mirror, [0 or 3] for ETL
     PZINFO = "PZINFO" # [card address]PZINFO
     Z2B = "Z2B"  # Z2B Y? |or| Z2B Y=1 to set the axis id.
+    INFO = "INFO" # INFO [axis]
 
 
 class ErrorCodes(Enum):
@@ -98,10 +100,10 @@ class ScanPattern(Enum):
 
 
 class ControlMode(Enum):
-    INTERNAL_CLOSED_LOOP = 0
-    EXTERNAL_CLOSED_LOOP = 1
-    INTERNAL_OPEN_LOOP = 2
-    EXTERNAL_OPEN_LOOP = 3
+    INTERNAL_CLOSED_LOOP = "0"
+    EXTERNAL_CLOSED_LOOP = "1"
+    INTERNAL_OPEN_LOOP = "2"
+    EXTERNAL_OPEN_LOOP = "3"
 
 
 class JoystickPolarity(Enum):

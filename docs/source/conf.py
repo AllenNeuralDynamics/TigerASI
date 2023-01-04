@@ -7,7 +7,7 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'TigerASI'
-copyright = '2022, poofjunior, adamkglaser'
+copyright = '2023, poofjunior, adamkglaser'
 author = 'poofjunior, adamkglaser'
 release = '0.0.1'
 
@@ -15,8 +15,8 @@ release = '0.0.1'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    "sphinx.ext.autodoc",  # enable doc generation from code docstrings.
     "sphinx.ext.napoleon",  # enable numpy and google style docstring parsing.
+    "sphinx.ext.autodoc",  # enable doc generation from code docstrings.
 ]
 
 templates_path = ['_templates']
@@ -38,7 +38,7 @@ html_theme_options = {
 }
 html_sidebars = {'**': ['localtoc.html', 'sourcelink.html',
                         'searchbox.html', 'globaltoc.html']}
-html_static_path = ['_static']
+html_static_path = []  #['_static']
 
 # Sphinx Options.
 autoclass_content = 'both'
