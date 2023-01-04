@@ -16,9 +16,13 @@ class Cmds(Enum):
     HERE = "H"  # [axis]=0 [axis]=0
     WHERE = "W"  # [axis] [axis]
     BACKLASH = "B" # [axis]=0 [axis]=0
+    ARRAY = "AR"
+    AHOME = "AH"
+    LOAD = "LD"
     CNTS = "CNTS" # [axis]?
     J = "J"  # Joystick
     JS = "JS"  # Joystick
+    RBMODE = "RM"  # Ring buffer mode setup.
     SCAN = "SCAN" # [X?] [Y=fast_axis_id, default X] [Z=slow_axis_id, default Y] [F=pattern]
     SCANR = "SCANR" # fast_axis [X=start in mm] [Y=stop in mm] [Z=enc_divide] [F= #_pixels] [R=retrace_speed]
     SCANV = "SCANV" # slow_axis [X=start in mm] [Y=stop in mm] [Z=number_of_lines] [F=overshoot_time in ms] [T=scan_overshoot]
@@ -56,6 +60,11 @@ class ErrorCodes(Enum):
     FILTERWHEEL_RESERVED_19 = ':N-19'
     FILTERWHEEL_RESERVED_20 = ':N-20'
     SERIAL_CMD_HALTED = ':N-21'
+
+
+class FirmwareModules(Enum):
+    SCAN_MODULE = "SCAN MODULE"
+    ARRAY_MODULE = "ARRAY MODULE"
 
 
 class JoystickInput(Enum):
@@ -110,3 +119,32 @@ class CCAZ(Enum):
     AXIS_2_REVERSE_JOYSTICK_POLARITY = 24
     AXIS_2_RESET_JOYSTICK_POLARITY = 25
     # more commands.
+
+
+class RingBufferMode(Enum):
+    TTL = 0
+    ONE_SHOT = 1
+    REPEATING = 2
+
+
+class TTLIn0Mode(Enum):
+    OFF = 0
+    MOVE_TO_NEXT_ABS_POSITION = 1
+    REPEAT_LAST_REL_MOVE = 2
+    AUTOFOCUS = 3
+    ZSTACK_ENABLE = 4
+    POSITION_REPORTING = 5  # Enabling this will probs break the driver.
+    INTERRUPT_ENABLED = 6
+    ARRAY_MODE_MOVE_TO_NEXT_POSITION = 7
+    IN0_LOCK_TOGGLE = 9
+    OUT0_TOGGLE_STATE = 10
+    SERVOLOCK_MODE = 11
+    MOVE_TO_NEXT_REL_POSITION = 12
+    # more niche commands not included.
+    SINGLE_AXIS_FUNCTION = 30
+
+
+class TTLOut0Mode(Enum):
+    ALWAYS_LOW = 0
+    ALWAYS_HIGH = 1
+    PULSE_AFTER_MOVING = 2
