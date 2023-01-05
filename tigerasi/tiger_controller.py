@@ -395,7 +395,7 @@ class TigerController:
                                     wait_for_output=wait_for_output,
                                     wait_for_reply=wait_for_reply)
 
-    @axis_check
+    @axis_check()
     def get_position(self, *args: str):
         """Return the controller's locations for lettered (non-numeric) axes.
         Note: filter wheel positions are not accessible this way.
@@ -446,7 +446,7 @@ class TigerController:
                                     wait_for_reply=wait_for_reply)
 
     # TODO: needs testing.
-    @axis_check
+    @axis_check()
     def get_speed(self, *args: str):
         """return the speed from the specified axis in [mm/s] or all axes if
         none are specified.
@@ -461,7 +461,7 @@ class TigerController:
         """
         return self._get_axis_value(Cmds.SPEED, *args)
 
-    @axis_check
+    @axis_check()
     def bind_axis_to_joystick_input(self, **kwargs: JoystickInput):
         """Map a tiger axis to a joystick input.
 
@@ -486,7 +486,7 @@ class TigerController:
         kwargs = {x: js_input.value for x, js_input in kwargs.items()}
         self._set_cmd_args_and_kwds(Cmds.J, **kwargs)
 
-    @axis_check
+    @axis_check()
     def get_joystick_axis_mapping(self, *args):
         """Get the axis mapping currently set on the joystick for the requested
             axes (or all if none are requested)
@@ -501,7 +501,7 @@ class TigerController:
         # Convert the reply codes (ints) to JoystickInput enums.
         return {x: JoystickInput(value) for x, value in raw_dict.items()}
 
-    @axis_check
+    @axis_check()
     def set_joystick_axis_polarity(self, **kwargs: JoystickPolarity):
         """Set the joystick polarity of the axes specified.
 
@@ -521,7 +521,7 @@ class TigerController:
         # Re-enable joystick inputs for the command to take effect.
         self.enable_joystick_inputs(*kwargs.keys())
 
-    @axis_check
+    @axis_check()
     def enable_joystick_inputs(self, *args):
         """Enable specified (or all if none are specified) axis control through
         the joystick.
@@ -540,7 +540,7 @@ class TigerController:
         enabled_axes = [f"{x.upper()}+" for x in args]
         return self._set_cmd_args_and_kwds(Cmds.J, *enabled_axes)
 
-    @axis_check
+    @axis_check()
     def disable_joystick_inputs(self, *args):
         """Disable specified (or all if none are specified) axis control
         through the joystick.
@@ -553,7 +553,7 @@ class TigerController:
         disabled_axes = [f"{x.upper()}-" for x in args]
         return self._set_cmd_args_and_kwds(Cmds.J, *disabled_axes)
 
-    @axis_check
+    @axis_check()
     @cache
     def get_encoder_ticks_per_mm(self, axis: str):
         """Get <encoder ticks> / <mm of travel> for the specified axis."""
@@ -566,7 +566,7 @@ class TigerController:
 
     # TODO: consider making this function a hidden function that only gets
     #  called when a particular tigerbox command needs an axis specified by id.
-    @axis_check
+    @axis_check()
     def get_axis_id(self, axis: str):
         """Get the hardware's axis id for a given axis.
 
