@@ -24,9 +24,6 @@ print("Done.")
 
 axes = ['x', 'y', 'z']
 
-box.reset_lower_travel_limits(*axes)
-box.reset_upper_travel_limits(*axes)
-
 lower_stage_limits = box.get_lower_travel_limit(*axes)
 upper_stage_limits = box.get_upper_travel_limit(*axes)
 print("Previous lower stage limits:")
@@ -35,7 +32,9 @@ print("Previous upper stage limits:")
 pprint.pprint(upper_stage_limits)
 
 print("Beginning interactive stage calibration sequence.")
-print("Press CTRL-C to bail at any time.")
+input("Press enter to continue or CTRL-C to bail at any time.")
+box.reset_lower_travel_limits(*axes)
+box.reset_upper_travel_limits(*axes)
 for x in axes:
     input(f"Use the joystick to move to the LOWER travel limit of {x.upper()}."
           f" Press enter when ready.")
