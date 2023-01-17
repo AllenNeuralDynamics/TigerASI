@@ -47,6 +47,10 @@ box.set_home('x', 'z', y=100.0) # Set x and z axes homing location to current sp
 box.set_home('z', 'y', 'x', m=100.0, n=200.0) # variable number of arguments ok! order and case don't matter.
 ````
 
+## Documentation
+Docs can be generated via Sphinx. 
+Stay tuned for docs made available online.
+
 ## Implementation Details
 
 ### Blocking or Non-Blocking?
