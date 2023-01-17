@@ -52,7 +52,8 @@ box.set_home('z', 'y', 'x', m=100.0, n=200.0) # variable number of arguments ok!
 
 ## Advanced Usage
 Many (but not all!) of ASI's more advanced features have been made available via this simplified API.
-For a breakdown of what commands have been exposed, have a look at the docs.
+This list includes joystick enabling/disabling and remapping, setting stage travel limits, queuing moves into the hardware buffer, and many other more nuanced features.
+For a breakdown of what commands have been exposed, have a look at the [examples](https://github.com/AllenNeuralDynamics/TigerASI/tree/main/examples) and the docs.
 
 ## Documentation
 Docs can be generated via Sphinx. 
