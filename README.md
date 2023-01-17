@@ -3,7 +3,6 @@ a lightweight python interface for ASI brand Tiger Controllers
 
 ## Installation
 
-This package can be installed from Pypi with `pip install tigerasi`.
 To install this package from the github repository in editable mode, from this directory invoke `pip install -e .`
 
 ## Intro and Basic Usage
