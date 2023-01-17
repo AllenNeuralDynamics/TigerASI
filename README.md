@@ -1,5 +1,8 @@
 # TigerASI
-a lightweight python interface for ASI brand Tiger Controllers
+a feature-rich Python interface for ASI brand Tiger Controllers.
+
+This driver was written to simplify the serial api to ASI's [Tiger Controllers](https://www.asiimaging.com/controllers/tiger-controller/) while reduce reliance on their [documentation](https://asiimaging.com/docs/products/serial_commands) for most users.
+Many (but not all!) of the commands have been exposed and wrapped in a simplified, self-consistent interface and documented for easy usage.
 
 ## Installation
 
@@ -46,6 +49,10 @@ The syntax for these commands look like this:
 box.set_home('x', 'z', y=100.0) # Set x and z axes homing location to current spot. Set y axis to specific spot.
 box.set_home('z', 'y', 'x', m=100.0, n=200.0) # variable number of arguments ok! order and case don't matter.
 ````
+
+## Advanced Usage
+Many (but not all!) of ASI's more advanced features have been made available via this simplified API.
+For a breakdown of what commands have been exposed, have a look at the docs.
 
 ## Documentation
 Docs can be generated via Sphinx. 
