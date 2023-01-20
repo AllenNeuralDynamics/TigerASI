@@ -25,7 +25,8 @@ jobs:
         echo "VERSION=${{ steps.tag_version.outputs.new_version }}" >> "$GITHUB_ENV"
     - name: Update version file with new version
       run: |
-        sed -ie "s/^\s*version.*/    version=\"${ {env.VERSION} }\",/" ./setup.py
+        echo "New version should be $VERSION"
+        sed -i'' "s/^\s*version.*/    version=\"$VERSION\",/" ./setup.py
     - name: Commit and Push version bump
       uses: EndBug/add-and-commit@v9
       with:
