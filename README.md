@@ -1,10 +1,11 @@
 # TigerASI
-a feature-rich Python interface for ASI brand Tiger Controllers.
+a feature-rich Python interface for ASI Tiger Controllers.
 
 This driver was written to simplify the serial api to ASI's [Tiger Controllers](https://www.asiimaging.com/controllers/tiger-controller/) while reduce reliance on their [documentation](https://asiimaging.com/docs/products/serial_commands) for most users.
 Many (but not all!) of the commands have been exposed and wrapped in a simplified, self-consistent interface and documented for easy usage.
 
 ## Installation
+To install this package from [PyPI](https://pypi.org/project/TigerASI/0.0.2/), invoke: `pip install TigerASI`.
 
 To install this package from the github repository in editable mode, from this directory invoke `pip install -e .`
 
