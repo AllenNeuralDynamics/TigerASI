@@ -22,5 +22,5 @@ setuptools.setup(
         "Operating System :: POSIX :: Linux",
     ],
     python_requires='>=3.9',
-    install_requires=['pyserial']
+    install_requires=['pyserial', 'sphinx']
 )

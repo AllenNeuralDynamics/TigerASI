@@ -9,6 +9,14 @@ Welcome to TigerASI's documentation!
     :members:
     :member-order: bysource
 
+.. autoenum:: tigerasi.device_codes.Cmds
+    :members:
+    :member-order: bysource
+
+.. autoenum:: tigerasi.device_codes.ErrorCodes
+    :members:
+    :member-order: bysource
+
 
 
 Indices and tables

@@ -33,7 +33,7 @@ html_theme_options = {
     #'page_width': 'auto',  # alabaseter theme spec
     #'fixed_sidebar': True,  # alabaster theme spec
     #'sidebar_width': '320px',  # alabaster theme spec
-    'body_min_width': '60%',
+    'body_min_width': '70%',
     'sidebarwidth': '320px',
 }
 html_sidebars = {'**': ['localtoc.html', 'sourcelink.html',

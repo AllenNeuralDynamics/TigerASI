@@ -820,12 +820,14 @@ class TigerController:
 
     def reset_ring_buffer(self, wait_for_reply: bool = True,
                           wait_for_output: bool = True):
-        self.clear_ring_buffer(wait_for_reply=wait_for_reply,
+        """Clear the ring buffer contents."""
+        self._clear_ring_buffer(wait_for_reply=wait_for_reply,
                                wait_for_output=wait_for_output)
         self._rb_axes = []
 
-    def clear_ring_buffer(self, wait_for_reply: bool = True,
+    def _clear_ring_buffer(self, wait_for_reply: bool = True,
                           wait_for_output: bool = True):
+        """Clear the ring buffer contents."""
         kwds = {'X': 0}
         self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds,
                                     wait_for_reply=wait_for_reply,
@@ -836,7 +838,8 @@ class TigerController:
                           mode: RingBufferMode = RingBufferMode.TTL,
                           wait_for_reply: bool = True,
                           wait_for_output: bool = False):
-        """Setup the ring buffer.
+        """Setup the ring buffer. Implements
+        `RBMODE <https://asiimaging.com/docs/commands/rbmode>`_ command.
 
         :param axes: any number of axis names which will be enabled to move
             via moves queued into the ring buffer.
