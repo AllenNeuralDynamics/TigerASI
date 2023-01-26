@@ -303,7 +303,7 @@ class TigerController:
         :param kwd_axes: axes to specify input position as the upper limit.
         :param wait: wait until the reply has been received.
 
-        ..code_block::
+        .. code-block:: python
 
             box.set_upper_travel_limit('x', 'y')  # current positions as limit OR
             box.set_upper_travel_limit(x=50, y=4.0)  # specific positions as limit OR
@@ -437,7 +437,7 @@ class TigerController:
         self._set_cmd_args_and_kwds(Cmds.J, **axes)
 
     @axis_check()
-    def get_joystick_axis_mapping(self, *axes):
+    def get_joystick_axis_mapping(self, *axes: str):
         """Get the axis mapping currently set on the joystick for the requested
             axes (or all if none are requested)
 
@@ -472,7 +472,7 @@ class TigerController:
         self.enable_joystick_inputs(*axes.keys())
 
     @axis_check()
-    def enable_joystick_inputs(self, *axes):
+    def enable_joystick_inputs(self, *axes: str):
         """Enable specified (or all if none are specified) axis control through
         the joystick.
 
@@ -491,7 +491,7 @@ class TigerController:
         return self._set_cmd_args_and_kwds(Cmds.J, *enabled_axes)
 
     @axis_check()
-    def disable_joystick_inputs(self, *axes):
+    def disable_joystick_inputs(self, *axes: str):
         """Disable specified (or all if none are specified) axis control
         through the joystick.
 
@@ -566,12 +566,14 @@ class TigerController:
         return control_num
 
     def start_scan(self, wait: bool = True):
+        """Start a scan that has been previously setup with scanr and scanv."""
         #TODO: Figure out how to make command below work
         # self.scan(ScanState.START)
         cmd_str = Cmds.SCAN.value + '\r'
         self.send(cmd_str, wait=wait)
 
     def stop_scan(self):
+        """Stop an active scan."""
         self.scan(ScanState.STOP)
 
     def scanr(self, scan_start_mm: float, scan_stop_mm: float = None,
