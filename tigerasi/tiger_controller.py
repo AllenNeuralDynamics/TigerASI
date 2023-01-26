@@ -565,7 +565,7 @@ class TigerController:
         # TODO: figure out which axis type it is and return that type of enum.
         return control_num
 
-    def start_scan(self, wait: bool = True)
+    def start_scan(self, wait: bool = True):
         #TODO: Figure out how to make command below work
         # self.scan(ScanState.START)
         cmd_str = Cmds.SCAN.value + '\r'
