@@ -20,8 +20,8 @@ box = TigerController("COM4")
 The basic command syntax looks like this:
 ````python
 box.zero_in_place('x', 'y')  # Zero out the specified axes at their current location.
-box.move_axes_absolute(x=1000, y=25)  # Move to an absolute location in "stage units" (tenths of microns).
-box.move_axes_relative(z=100) # Move z +100 stage units in the positive z direction.
+box.move_absolute(x=1000, y=25)  # Move to an absolute location in "stage units" (tenths of microns).
+box.move_relative(z=100) # Move z +100 stage units in the positive z direction.
 ````
 
 ### Syntax Basics
@@ -62,7 +62,7 @@ box = SimTigerController(build_config={'Motor Axes': ['X', 'Y', 'Z']})
 
 # This object tracks its internal state for position and speed.
 box.home_in_place('x', 'y', 'z')  # home mocked axes.
-box.move_axes_absolute(z=10)  # move mocked axis.
+box.move_absolute(z=10)  # move mocked axis.
 ````
 This feature can be useful for testing higher level code using the current api without the need to interact with real hardware.
 
@@ -87,8 +87,8 @@ Commands that query the Tigerbox state will also return data with that reply.
 
 Waiting for a reply introduces 10-20[ms] of execution time before the function returns an 'ACK'knowledgement.
 By default, methods *will block* until receiving this acknowledgement unless otherwise specified, like this:
-````
-box.move_axes_absolute(x=1000, y=25, wait=False) # will not block.
+````python
+box.move_absolute(x=1000, y=25, wait_for_output=False, wait_for_reply=False) # will not block.
 ````
 This behavior can only be used for commands to change the Tigerbox state.
 Commands that query the Tigerbox state will always block until they receive a hardware reply.
