@@ -51,6 +51,22 @@ box.set_home('x', 'z', y=100.0) # Set x and z axes homing location to current sp
 box.set_home('z', 'y', 'x', m=100.0, n=200.0) # variable number of arguments ok! order and case don't matter.
 ````
 
+Some commands assume *all* axes if none are specified.
+````python
+box.zero_in_place()  # will zero ALL lettered axes.
+box.reset_lower_travel_limits()  # will reset ALL lettered axes.
+
+box.get_home()  # will get ALL lettered axis home positions.
+box.get_lower_travel_limits() # will get ALL lettered axis lower travel limits.
+````
+
+For setting values, this might not be your desired behavior, so it is safer to default to passing in axes explicitly.
+````python
+box.zero_in_place('x', 'y', 'z')  # will zero only x, y, and z axes.
+box.reset_lower_travel_limits('x', 'y', 'z')  # will reset only x, y, and z axes.
+````
+When in doubt, check the docs.
+
 ## Simulation
 This package also features a simulated version of the TigerController
 ````python
