@@ -9,7 +9,7 @@ from typing import Union
 import logging
 
 # Constants
-UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
+STEPS_PER_UM = 10.0  # multiplication constant to convert micrometers to steps.
 MM_SCALE = 4
 DEG_SCALE = 3
 REPLY_WAIT_TIME_S = 0.020  # minimum time to wait for a reply after having
