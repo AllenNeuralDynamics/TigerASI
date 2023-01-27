@@ -27,17 +27,19 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'classic'
+html_theme = 'furo'
+#html_theme = 'classic'
 #html_theme = 'alabaster'
 html_theme_options = {
     #'page_width': 'auto',  # alabaseter theme spec
     #'fixed_sidebar': True,  # alabaster theme spec
     #'sidebar_width': '320px',  # alabaster theme spec
-    'body_min_width': '70%',
-    'sidebarwidth': '320px',
+#    'body_min_width': '70%', # classic theme spec
+#    'sidebarwidth': '320px', # classic theme spec
 }
-html_sidebars = {'**': ['localtoc.html', 'sourcelink.html',
-                        'searchbox.html', 'globaltoc.html']}
+# 'classic' theme sidebar settings.
+#html_sidebars = {'**': ['localtoc.html', 'sourcelink.html',
+#                        'searchbox.html', 'globaltoc.html']}
 html_static_path = []  #['_static']
 
 # Sphinx Options.
