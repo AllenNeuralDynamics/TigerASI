@@ -60,11 +60,12 @@ box.get_home()  # will get ALL lettered axis home positions.
 box.get_lower_travel_limits() # will get ALL lettered axis lower travel limits.
 ````
 
-For setting values, this might not be your desired behavior, so it is better to pass in axes explicitly.
+For setting values, this might not be your desired behavior, so it is safer to default to passing in axes explicitly.
 ````python
 box.zero_in_place('x', 'y', 'z')  # will zero only x, y, and z axes.
 box.reset_lower_travel_limits('x', 'y', 'z')  # will reset only x, y, and z axes.
 ````
+When in doubt, check the docs.
 
 ## Advanced Usage
 Many (but not all!) of ASI's more advanced features have been made available via this simplified API.
