@@ -20,8 +20,8 @@ box = TigerController("COM4")
 The basic command syntax looks like this:
 ````python
 box.zero_in_place('x', 'y')  # Zero out the specified axes at their current location.
-box.move_axes_absolute(x=1000, y=25)  # Move to an absolute location in "stage units" (tenths of microns).
-box.move_axes_relative(z=100) # Move z +100 stage units in the positive z direction.
+box.move_absolute(x=1000, y=25)  # Move to an absolute location in "stage units" (tenths of microns).
+box.move_relative(z=100) # Move z +100 stage units in the positive z direction.
 ````
 
 ### Syntax Basics
@@ -69,7 +69,7 @@ Commands that query the Tigerbox state will also return data with that reply.
 Waiting for a reply introduces 10-20[ms] of execution time before the function returns.
 By default, methods *will block* until receiving this reply unless otherwise specified, like this:
 ````
-box.move_axes_absolute(x=1000, y=25, wait_for_output=False, wait_for_reply=False) # will not block.
+box.move_absolute(x=1000, y=25, wait_for_output=False, wait_for_reply=False) # will not block.
 ````
 This behavior can only be used for commands to change the Tigerbox state.
 Commands that query the Tigerbox state will always block until they receive a hardware reply.

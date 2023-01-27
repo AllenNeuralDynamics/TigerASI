@@ -123,8 +123,8 @@ class TigerController:
 
         .. code-block:: python
 
-            box.move_axis_relative(x=10, y=20)  # Move 1 micron in x and 2 in y
-            box.move_axis_relative(z=100)  # Move 10 microns in z
+            box.move_relative(x=10, y=20)  # Move 1 micron in x and 2 in y
+            box.move_relative(z=100)  # Move 10 microns in z
 
         """
         self._set_cmd_args_and_kwds(Cmds.MOVEREL, **axes, wait=wait)
@@ -141,7 +141,7 @@ class TigerController:
 
         .. code-block:: python
 
-            box.move_axis_absolute(x=0, y=100)  # Move x and y axes to absolute location.
+            box.move_absolute(x=0, y=100)  # Move x and y axes to absolute location.
 
         """
         self._set_cmd_args_and_kwds(Cmds.MOVEABS, **axes, wait=wait)
