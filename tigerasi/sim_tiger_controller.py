@@ -58,8 +58,8 @@ class SimTigerController(TigerController):
 
     def __init__(self, com_port = None,
                  build_config={'Motor Axes': ['X', 'Y', 'Z', 'M', 'N']}):
-        self.log = logging.getLogger(__name__)
         self.ser = SerialStub(com_port, None, None)
+        self.log = logging.getLogger(__name__)
         self.skipped_replies = 0
 
         # Get the lettered axes: ['X', 'Y', 'Z', ...].
