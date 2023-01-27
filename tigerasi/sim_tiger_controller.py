@@ -84,7 +84,7 @@ class SimTigerController(TigerController):
 
     # High-Level Commands
     @axis_check('wait')
-    def move_axes_relative(self, wait: bool = True, **axes: int):
+    def move_relative(self, wait: bool = True, **axes: int):
         """move the axes specified in kwargs by a relative amount.
 
         Note: Units are in tenths of microns."""
@@ -94,7 +94,7 @@ class SimTigerController(TigerController):
         super().move_axes_relative(wait=wait, **axes)
 
     @axis_check('wait')
-    def move_axes_absolute(self, wait: bool = True, **axes: int):
+    def move_absolute(self, wait: bool = True, **axes: int):
         """move the axes specified by the specified absolute amount
         (in tenths of microns)."""
         for key, val in axes.items():

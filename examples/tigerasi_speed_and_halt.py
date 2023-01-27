@@ -44,11 +44,11 @@ box.zero_in_place()
 print(f"box position is: {box.get_position('x', 'y', 'z')}")
 # Send a relative move cmd.
 print("moving an axis.")
-box.move_axes_relative(x=2000)
+box.move_relative(x=2000)
 sleep(0.05)
 # halt immediately after.
 print("halting.")
 box.halt()
 # read the position.
 print(f"box position is: {box.get_position('x', 'y', 'z')}")
-box.move_axes_absolute(x=0)
+box.move_absolute(x=0)

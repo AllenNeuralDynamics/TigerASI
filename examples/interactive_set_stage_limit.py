@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Connects to the Tiger Box, moves some axes, returns to starting pose."""
 
-from tigerasi.tiger_controller import TigerController, UM_TO_STEPS
+from tigerasi.tiger_controller import TigerController, STEPS_PER_UM
 from tigerasi.device_codes import ScanPattern
 import pprint
 import time
@@ -39,13 +39,13 @@ for x in axes:
     input(f"Use the joystick to move to the LOWER travel limit of {x.upper()}."
           f" Press enter when ready.")
     axis_pos_dict = box.get_position(x)
-    axis_pos_dict_mm = {x: v/UM_TO_STEPS/1000.
+    axis_pos_dict_mm = {x: v / STEPS_PER_UM / 1000.
                         for x, v in axis_pos_dict.items()}
     box.set_lower_travel_limit(**axis_pos_dict_mm)
     input(f"Use the joystick to move to the UPPER travel limit of {x.upper()}."
           f" Press enter when ready.")
     axis_pos_dict = box.get_position(x)
-    axis_pos_dict_mm = {x: v / UM_TO_STEPS / 1000.
+    axis_pos_dict_mm = {x: v / STEPS_PER_UM / 1000.
                         for x, v in axis_pos_dict.items()}
     box.set_upper_travel_limit(**axis_pos_dict_mm)
 

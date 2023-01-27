@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
 from enum import Enum
 from serial import Serial, SerialException
@@ -9,7 +8,7 @@ from typing import Union
 import logging
 
 # Constants
-UM_TO_STEPS = 10.0  # multiplication constant to convert micrometers to steps.
+STEPS_PER_UM = 10.0  # multiplication constant to convert micrometers to steps.
 MM_SCALE = 4
 DEG_SCALE = 3
 DEFAULT_SPEED_PERCENT = 67.0
@@ -116,7 +115,7 @@ class TigerController:
 
     # High-Level Commands
     @axis_check('wait')
-    def move_axes_relative(self, wait: bool = True, **axes: int):
+    def move_relative(self, wait: bool = True, **axes: int):
         """Move the axes specified by a relative amount.
 
         Note: Units are in tenths of microns.
@@ -135,7 +134,7 @@ class TigerController:
         self._last_rel_move_axes = [x for x in axes if x in self.axes]
 
     @axis_check('wait')
-    def move_axes_absolute(self, wait: bool = True, **axes: int):
+    def move_absolute(self, wait: bool = True, **axes: int):
         """move the axes specified by the specified absolute amount
         (in tenths of microns). Unspecified axes will not be moved.
 
