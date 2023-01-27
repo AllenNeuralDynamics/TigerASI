@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """TigerController Serial Port Abstraction"""
 from enum import Enum
 from serial import Serial, SerialException
@@ -114,7 +113,7 @@ class TigerController:
 
     # High-Level Commands
     @axis_check('wait')
-    def move_axes_relative(self, wait: bool = True, **axes: int):
+    def move_relative(self, wait: bool = True, **axes: int):
         """Move the axes specified by a relative amount.
 
         Note: Units are in tenths of microns.
@@ -133,7 +132,7 @@ class TigerController:
         self._last_rel_move_axes = [x for x in axes if x in self.axes]
 
     @axis_check('wait')
-    def move_axes_absolute(self, wait: bool = True, **axes: int):
+    def move_absolute(self, wait: bool = True, **axes: int):
         """move the axes specified by the specified absolute amount
         (in tenths of microns). Unspecified axes will not be moved.
 

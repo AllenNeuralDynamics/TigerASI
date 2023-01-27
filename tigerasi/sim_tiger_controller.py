@@ -31,7 +31,7 @@ class TigerController:
 
     # High-Level Commands
     @axis_check('wait_for_reply', 'wait_for_output')
-    def move_axes_relative(self, wait_for_output=True, wait_for_reply=True,
+    def move_relative(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """move the axes specified in kwargs by a relative amount.
 
@@ -42,7 +42,7 @@ class TigerController:
         # TODO; add some sleeping here.
 
     @axis_check('wait_for_reply', 'wait_for_output')
-    def move_axes_absolute(self, wait_for_output=True, wait_for_reply=True,
+    def move_absolute(self, wait_for_output=True, wait_for_reply=True,
                            **kwargs: int):
         """move the axes specified in kwargs by the specified absolute amount (in tenths of microns)."""
         axes_str = ""
