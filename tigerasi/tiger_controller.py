@@ -11,6 +11,8 @@ import logging
 STEPS_PER_UM = 10.0  # multiplication constant to convert micrometers to steps.
 MM_SCALE = 4
 DEG_SCALE = 3
+DEFAULT_SPEED_PERCENT = 67.0
+DEFAULT_SPEED_MM_PER_SEC = 7.68 * 67.0
 REPLY_WAIT_TIME_S = 0.020  # minimum time to wait for a reply after having
                            # sent a command.
 GET_INFO_STRING_SPLIT = 33 # index to split get info string reply
@@ -254,7 +256,8 @@ class TigerController:
             constant.
 
         :param axes: axes to specify the current position as lower limit.
-        :param kwd_axes: axes to specify input position as the lower limit.
+        :param kwd_axes: axes to specify input position (in [mm]) as the lower
+            limit.
         :param wait: wait until the reply has been received.
 
         .. code-block:: python
@@ -577,7 +580,7 @@ class TigerController:
 
     def scanr(self, scan_start_mm: float, scan_stop_mm: float = None,
               pulse_interval_enc_ticks: int = 1, num_pixels: int = None,
-              retrace_speed: int = 67, wait: bool = True):
+              retrace_speed: int = DEFAULT_SPEED_PERCENT, wait: bool = True):
         """Setup the fast scanning axis start position and distance OR start
         position and number of pixels. To setup a scan, either scan_stop_mm
         or num_pixels must be specified, but not both.
@@ -610,7 +613,7 @@ class TigerController:
                    f" Z={pulse_interval_enc_ticks}{num_pixels_str}" \
                    f" R={retrace_speed}"
         cmd_str = Cmds.SCANR.value + args_str + '\r'
-        self.send(cmd_str, wait)
+        self.send(cmd_str, wait=wait)
 
     def scanv(self, scan_start_mm: float, scan_stop_mm: float, line_count: int,
               overshoot_time_ms: int = None, overshoot_factor: float = None,
@@ -974,7 +977,7 @@ class TigerController:
         wait_for_reply = wait  # wait until at least one line has been read back.
         # TODO: clear input buffer before issuing a read-and-wait if the
         #  recv buffer is full. Use in_waiting.
-        self.log.debug(f"sending: {repr(cmd_str)}")
+        self.log.debug(f"Sending: {repr(cmd_str)}")
         self.ser.write(cmd_str.encode('ascii'))
         self._last_cmd_send_time = perf_counter()
         if wait_for_output:  # Wait for all bytes to exit the output buffer.
@@ -993,7 +996,7 @@ class TigerController:
         while True:
             reply = \
                 self.ser.read_until(read_until.encode("ascii")).decode("utf8")
-            self.log.debug(f"reply: {repr(reply)}")
+            self.log.debug(f"Reply: {repr(reply)}")
             try:
                 self.check_reply_for_errors(reply)
             except SyntaxError as e:  # Technically, this could be a skipped reply.
@@ -1154,9 +1157,9 @@ class TigerController:
 
         """
         card_addr_str = f"{card_address}" if card_address is not None else ""
-        args_str = " ".join([f"{a.upper()}" for a in args])
-        kwds_str = " ".join([f"{a.upper()}={v}" for a, v in kwds.items()])
-        cmd_str = f"{card_addr_str}{cmd.value} {args_str} {kwds_str}\r"
+        args_str = "".join([f" {a.upper()}" for a in args])
+        kwds_str = "".join([f" {a.upper()}={v}" for a, v in kwds.items()])
+        cmd_str = f"{card_addr_str}{cmd.value}{args_str}{kwds_str}\r"
         return self.send(cmd_str, wait=wait)
 
     def _get_axis_value(self, cmd: Cmds, *axes: str):

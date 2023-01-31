@@ -35,7 +35,7 @@ box.zero_in_place('X', 'y', 'Z')  # also ok
 ````
 and the order doesn't matter.
 ````python
-box.zero_in_place('y', 'z', 'x')  # also ok 
+box.zero_in_place('y', 'z', 'x')  # also ok
 ````
 
 All commands that query stage axes return a dict, keyed by *upper-case* stage axis.
@@ -67,14 +67,33 @@ box.reset_lower_travel_limits('x', 'y', 'z')  # will reset only x, y, and z axes
 ````
 When in doubt, check the docs.
 
+## Simulation
+This package also features a simulated version of the TigerController
+````python
+from tigerasi.sim_tiger_controller import SimTigerController
+
+box = SimTigerController()  # OR
+box = SimTigerController('COM4')  # com port is ignored. # OR
+box = SimTigerController(build_config={'Motor Axes': ['X', 'Y', 'Z']})
+
+# This object tracks its internal state for position and speed.
+box.home_in_place('x', 'y', 'z')  # home mocked axes.
+box.move_absolute(z=10)  # move mocked axis.
+````
+This feature can be useful for testing higher level code using the current api without the need to interact with real hardware.
+
 ## Advanced Usage
 Many (but not all!) of ASI's more advanced features have been made available via this simplified API.
 This list includes joystick enabling/disabling and remapping, setting stage travel limits, queuing moves into the hardware buffer, and many other more nuanced features.
-For a breakdown of what commands have been exposed, have a look at the [examples](https://github.com/AllenNeuralDynamics/TigerASI/tree/main/examples) and the docs.
+For a breakdown of what commands have been exposed, have a look at the [examples folder](https://github.com/AllenNeuralDynamics/TigerASI/tree/main/examples) and the docs.
 
 ## Documentation
-Docs can be generated via Sphinx. 
+Docs can be generated via Sphinx.
 Stay tuned for docs made available online.
+
+
+
+## Logging
 
 ## Implementation Details
 
@@ -82,9 +101,9 @@ Stay tuned for docs made available online.
 All commands to the Tigerbox return a reply.
 Commands that query the Tigerbox state will also return data with that reply.
 
-Waiting for a reply introduces 10-20[ms] of execution time before the function returns.
-By default, methods *will block* until receiving this reply unless otherwise specified, like this:
-````
+Waiting for a reply introduces 10-20[ms] of execution time before the function returns an 'ACK'knowledgement.
+By default, methods *will block* until receiving this acknowledgement unless otherwise specified, like this:
+````python
 box.move_absolute(x=1000, y=25, wait_for_output=False, wait_for_reply=False) # will not block.
 ````
 This behavior can only be used for commands to change the Tigerbox state.
