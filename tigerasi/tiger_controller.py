@@ -158,6 +158,11 @@ class TigerController:
         software limit or a hardware limit, it is not safe to assume that
         a stage axis is in the prespecified homing position upon finishing
         this routine.
+
+        .. code-block:: python
+
+            box.home('x', 'y', 'z')  # home the specified axes.
+
         """
         self._set_cmd_args_and_kwds(Cmds.HOME, *axes, wait=wait)
 
@@ -199,7 +204,7 @@ class TigerController:
         axes if none are specified.
 
         Note: the returned value will adjust automatically such that the
-            physical location remains constant.
+        physical location remains constant.
 
         :param axes: the axes to get the machine frame home value for.
         """
@@ -213,7 +218,7 @@ class TigerController:
         (i.e: Set the specified axes current location to zero.)
 
         Note: the returned value will adjust automatically such that the
-            physical location remains constant.
+        physical location remains constant.
 
         .. code-block:: python
 
@@ -252,8 +257,7 @@ class TigerController:
         or to a specified position in [mm].
 
         Note: the values written here will persist across power cycles and
-            adjust automatically such that the physical location remains
-            constant.
+        adjust automatically such that the physical location remains constant.
 
         :param axes: axes to specify the current position as lower limit.
         :param kwd_axes: axes to specify input position (in [mm]) as the lower
