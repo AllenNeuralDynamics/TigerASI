@@ -613,7 +613,7 @@ class TigerController:
                    f" Z={pulse_interval_enc_ticks}{num_pixels_str}" \
                    f" R={retrace_speed}"
         cmd_str = Cmds.SCANR.value + args_str + '\r'
-        self.send(cmd_str, wait)
+        self.send(cmd_str, wait=wait)
 
     def scanv(self, scan_start_mm: float, scan_stop_mm: float, line_count: int,
               overshoot_time_ms: int = None, overshoot_factor: float = None,
