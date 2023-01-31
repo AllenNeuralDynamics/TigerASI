@@ -1,7 +1,8 @@
 [project]
 name = "tigerasi"
 description = "a lightweight python driver for ASI brand Tiger Controllers"
-dynamic = ["version"]
+version = "0.0.9"
+#dynamic = ["version"]
 license = {text= "MIT"}
 authors = [
     {name = "Joshua Vasquez", email = "joshua.vasquez@alleninstitute.org"},
