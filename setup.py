@@ -22,5 +22,5 @@ setuptools.setup(
         "Operating System :: POSIX :: Linux",
     ],
     python_requires='>=3.9',
-    install_requires=['pyserial', 'sphinx', 'furo']
+    install_requires=['pyserial', 'sphinx', 'furo', 'enum-tools[sphinx]']
 )

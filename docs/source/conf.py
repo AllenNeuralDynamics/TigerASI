@@ -17,6 +17,7 @@ release = '0.0.1'
 extensions = [
     "sphinx.ext.napoleon",  # enable numpy and google style docstring parsing.
     "sphinx.ext.autodoc",  # enable doc generation from code docstrings.
+    "enum_tools.autoenum",
 ]
 
 templates_path = ['_templates']
