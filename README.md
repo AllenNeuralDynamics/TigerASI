@@ -91,10 +91,6 @@ For a breakdown of what commands have been exposed, have a look at the [examples
 Docs can be generated via Sphinx.
 Stay tuned for docs made available online.
 
-
-
-## Logging
-
 ## Implementation Details
 
 ### Blocking or Non-Blocking?
@@ -104,7 +100,7 @@ Commands that query the Tigerbox state will also return data with that reply.
 Waiting for a reply introduces 10-20[ms] of execution time before the function returns an 'ACK'knowledgement.
 By default, methods *will block* until receiving this acknowledgement unless otherwise specified, like this:
 ````python
-box.move_absolute(x=1000, y=25, wait_for_output=False, wait_for_reply=False) # will not block.
+box.move_absolute(x=1000, y=25, wait=False) # will not block.
 ````
 This behavior can only be used for commands to change the Tigerbox state.
 Commands that query the Tigerbox state will always block until they receive a hardware reply.
