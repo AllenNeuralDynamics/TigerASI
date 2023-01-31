@@ -23,7 +23,7 @@ jobs:
     - name: Get version file name set variables
       run: |
         pkg_name=$(grep -P 'version = \{attr = .*\}' pyproject.toml | grep -oP '\w+.__version__')
-        init_file="./${pkg_name//.__version__}/__init__.py"
+        init_file="./${pkg_name}/__init__.py"
         echo "VERSION_FILE=$init_file" >> "$GITHUB_ENV"
         echo "VERSION=${{ steps.tag_version.outputs.new_version }}" >> "$GITHUB_ENV"
     - name: Update version file with new version
