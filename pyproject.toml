@@ -33,6 +33,3 @@ repository = "https://github.com/AllenNeuralDynamics/TigerASI"
 [build-system]
 requires = ["flit-core>=3.7.1,<4"]
 build-backend = "flit_core.buildapi"
-
-[project.scripts]
-exaspim = "bin.main:main"
