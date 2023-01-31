@@ -20,8 +20,8 @@ box = TigerController("COM4")
 The basic command syntax looks like this:
 ````python
 box.zero_in_place('x', 'y')  # Zero out the specified axes at their current location.
-box.move_axes_absolute(x=1000, y=25)  # Move to an absolute location in "stage units" (tenths of microns).
-box.move_axes_relative(z=100) # Move z +100 stage units in the positive z direction.
+box.move_absolute(x=1000, y=25)  # Move to an absolute location in "stage units" (tenths of microns).
+box.move_relative(z=100) # Move z +100 stage units in the positive z direction.
 ````
 
 ### Syntax Basics
@@ -51,6 +51,22 @@ box.set_home('x', 'z', y=100.0) # Set x and z axes homing location to current sp
 box.set_home('z', 'y', 'x', m=100.0, n=200.0) # variable number of arguments ok! order and case don't matter.
 ````
 
+Some commands assume *all* axes if none are specified.
+````python
+box.zero_in_place()  # will zero ALL lettered axes.
+box.reset_lower_travel_limits()  # will reset ALL lettered axes.
+
+box.get_home()  # will get ALL lettered axis home positions.
+box.get_lower_travel_limits() # will get ALL lettered axis lower travel limits.
+````
+
+For setting values, this might not be your desired behavior, so it is safer to default to passing in axes explicitly.
+````python
+box.zero_in_place('x', 'y', 'z')  # will zero only x, y, and z axes.
+box.reset_lower_travel_limits('x', 'y', 'z')  # will reset only x, y, and z axes.
+````
+When in doubt, check the docs.
+
 ## Advanced Usage
 Many (but not all!) of ASI's more advanced features have been made available via this simplified API.
 This list includes joystick enabling/disabling and remapping, setting stage travel limits, queuing moves into the hardware buffer, and many other more nuanced features.
@@ -69,7 +85,7 @@ Commands that query the Tigerbox state will also return data with that reply.
 Waiting for a reply introduces 10-20[ms] of execution time before the function returns.
 By default, methods *will block* until receiving this reply unless otherwise specified, like this:
 ````
-box.move_axes_absolute(x=1000, y=25, wait_for_output=False, wait_for_reply=False) # will not block.
+box.move_absolute(x=1000, y=25, wait_for_output=False, wait_for_reply=False) # will not block.
 ````
 This behavior can only be used for commands to change the Tigerbox state.
 Commands that query the Tigerbox state will always block until they receive a hardware reply.
