@@ -1,0 +1,38 @@
+[project]
+name = "tigerasi"
+description = "a lightweight python driver for ASI brand Tiger Controllers"
+version = "0.0.9"
+license = {text= "MIT"}
+authors = [
+    {name = "Joshua Vasquez", email = "joshua.vasquez@alleninstitute.org"},
+    {name = "Adam Glaser", email = "adam.glaser@alleninstitute.org"},
+]
+readme = "README.md"
+keywords = ['microscopy', 'tiger', 'asi']
+classifiers=[
+    'License :: OSI Approved :: MIT License',
+    'Development Status :: 4 - Beta',
+    'Programming Language :: Python'
+]
+
+requires-python = ">=3.9"
+dependencies = [
+    "pyserial",
+]
+
+[project.optional-dependencies]
+dev = [
+    "sphinx",
+    "furo",
+    "enum-tools[sphinx]",
+]
+
+[project.urls]
+repository = "https://github.com/AllenNeuralDynamics/TigerASI"
+
+[build-system]
+requires = ["flit-core>=3.7.1,<4"]
+build-backend = "flit_core.buildapi"
+
+[project.scripts]
+exaspim = "bin.main:main"

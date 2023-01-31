@@ -7,7 +7,9 @@ Many (but not all!) commands have been exposed and wrapped in a simplified, self
 ## Installation
 To install this package from [PyPI](https://pypi.org/project/TigerASI/0.0.2/), invoke: `pip install TigerASI`.
 
-To install this package from the github repository in editable mode, from this directory invoke `pip install -e .`
+To install this package from the Github in editable mode, from this directory invoke: `pip install -e .`
+
+To install this package in editable mode and build the docs locally, invoke: `pip install -e .[dev]`
 
 ## Intro and Basic Usage
 
