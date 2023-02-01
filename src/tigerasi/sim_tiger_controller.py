@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Simulated Tiger Box."""
-from .device_codes import *
-from .tiger_controller import axis_check, no_repeated_axis_check
-from mock import NonCallableMock
-from .tiger_controller import *
+from tigerasi.device_codes import *
+from tigerasi.tiger_controller import axis_check, no_repeated_axis_check
+from unittest.mock import NonCallableMock
+from tigerasi.tiger_controller import *
 import logging
 
 # TODO: consider mocking the serial port directly OR
@@ -91,7 +91,7 @@ class SimTigerController(TigerController):
         for key, val in axes.items():  # Update simulated location.
             self.sim_positions[key] += val
         self.ser.push_to_out_buffer(b'\r\n')  # Fake reply.
-        super().move_axes_relative(wait=wait, **axes)
+        super().move_relative(wait=wait, **axes)
 
     @axis_check('wait')
     def move_absolute(self, wait: bool = True, **axes: int):
@@ -100,7 +100,7 @@ class SimTigerController(TigerController):
         for key, val in axes.items():
             self.sim_positions[key] = val
         self.ser.push_to_out_buffer(b'\r\n')  # Fake reply.
-        super().move_axes_absolute(wait=wait, **axes)
+        super().move_absolute(wait=wait, **axes)
 
     @axis_check('wait')
     def zero_in_place(self, *args: str):

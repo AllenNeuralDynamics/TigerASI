@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "tigerasi"
 description = "a lightweight python driver for ASI brand Tiger Controllers"
@@ -30,6 +34,9 @@ dev = [
 [project.urls]
 repository = "https://github.com/AllenNeuralDynamics/TigerASI"
 
-[build-system]
-requires = ["flit-core>=3.7.1,<4"]
-build-backend = "flit_core.buildapi"
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "tigerasi.__version__"}
+readme = {file = ["README.md"]}
