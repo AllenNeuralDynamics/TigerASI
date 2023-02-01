@@ -91,7 +91,7 @@ class SimTigerController(TigerController):
         for key, val in axes.items():  # Update simulated location.
             self.sim_positions[key] += val
         self.ser.push_to_out_buffer(b'\r\n')  # Fake reply.
-        super().move_axes_relative(wait=wait, **axes)
+        super().move_relative(wait=wait, **axes)
 
     @axis_check('wait')
     def move_absolute(self, wait: bool = True, **axes: int):
@@ -100,7 +100,7 @@ class SimTigerController(TigerController):
         for key, val in axes.items():
             self.sim_positions[key] = val
         self.ser.push_to_out_buffer(b'\r\n')  # Fake reply.
-        super().move_axes_absolute(wait=wait, **axes)
+        super().move_absolute(wait=wait, **axes)
 
     @axis_check('wait')
     def zero_in_place(self, *args: str):
