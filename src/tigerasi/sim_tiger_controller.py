@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Simulated Tiger Box."""
-from .device_codes import *
-from .tiger_controller import axis_check, no_repeated_axis_check
-from mock import NonCallableMock
-from .tiger_controller import *
+from tigerasi.device_codes import *
+from tigerasi.tiger_controller import axis_check, no_repeated_axis_check
+from unittest.mock import NonCallableMock
+from tigerasi.tiger_controller import *
 import logging
 
 # TODO: consider mocking the serial port directly OR
