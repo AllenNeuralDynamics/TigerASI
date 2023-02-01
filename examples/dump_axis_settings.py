@@ -20,3 +20,4 @@ for axis in ordered_axes:
 
 with open("tiger_settings.json", "w") as outfile:
     json.dump(settings, outfile, indent=4)
+
