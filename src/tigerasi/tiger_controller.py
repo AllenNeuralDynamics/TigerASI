@@ -120,7 +120,6 @@ class TigerController:
     def move_relative(self, wait: bool = True, **axes: int):
         """Move the axes specified by a corresponding relative amount
         (in tenths of microns). Unspecified axes will not be moved.
-
         Implements `MOVEREL <http://asiimaging.com/docs/products/serial_commands#commandmovrel_r>`_ command.
 
         :param axes: one or more axes specified by name where the value is
@@ -140,7 +139,6 @@ class TigerController:
     def move_absolute(self, wait: bool = True, **axes: int):
         """move the axes specified by a corresponding absolute amount.
         (in tenths of microns). Unspecified axes will not be moved.
-
         Implements `MOVE <http://asiimaging.com/docs/products/serial_commands#commandmove_m>`_ command.
 
         :param axes: one or more axes specified by name where the value is
@@ -158,7 +156,6 @@ class TigerController:
         """Move to the preset home position (or hard axis travel limit) for
         the specified axes. If the preset position is not reachable, move until
         a hardware stage limit is reached.
-
         Implements `HOME <http://asiimaging.com/docs/products/serial_commands#commandhome>`_ command.
 
         Note: Because the homing procedure may either reach the specified
@@ -177,7 +174,6 @@ class TigerController:
     @no_repeated_axis_check
     def set_home(self, *axes: str, wait: bool = True, **kwd_axes: float):
         """Set the current or specified position to home to in [mm].
-
         Implements `SETHOME <http://asiimaging.com/docs/products/serial_commands#commandsethome_hm>`_ command.
 
         Note: the values written here will persist across power cycles and
@@ -202,7 +198,6 @@ class TigerController:
     @axis_check('wait')
     def reset_home(self, *axes: str, wait: bool = True):
         """Restore home values of the axes specified to firmware defaults.
-
         Implements `SETHOME <http://asiimaging.com/docs/products/serial_commands#commandsethome_hm>`_ command.
 
         Note: the firmware default is intentionally an unreachable stage
@@ -214,7 +209,6 @@ class TigerController:
     def get_home(self, *axes: str):
         """Return the position to home to in [mm] for the specified axes or all
         axes if none are specified.
-
         Implements `SETHOME <http://asiimaging.com/docs/products/serial_commands#commandsethome_hm>`_ command.
 
         Note: the returned value will adjust automatically such that the
@@ -401,7 +395,6 @@ class TigerController:
     @axis_check('wait')
     def set_speed(self, wait: bool = True, **axes: float):
         """Set one or more axis speeds to a value in [mm/sec].
-
         Implements `SPEED <http://asiimaging.com/docs/products/serial_commands#commandspeed_s>`_ command.
 
         :param axes: one or more axes specified by name where the value is
@@ -529,7 +522,6 @@ class TigerController:
     @cache
     def get_encoder_ticks_per_mm(self, axis: str):
         """Get <encoder ticks> / <mm of travel> for the specified axis.
-
         Implements `CNTS <http://asiimaging.com/docs/commands/CNTS>`_ command.
         """
         # TODO: can this function accept an arbitrary number of args?
@@ -583,7 +575,7 @@ class TigerController:
         `PM <http://asiimaging.com/docs/commands/pm>`_ command.
 
         :param axis: the axis of interest.
-         :return: control mode (as a string) of the specified axis.
+        :return: control mode (as a string) of the specified axis.
         """
         # example reply appears as 'V=1 :A'
         # assume control mode is a single digit
@@ -592,11 +584,10 @@ class TigerController:
         return control_num
 
     @axis_check('pattern', 'wait')
-    def setup_scan(self fast_axis: str, slow_axis: str,
-                   pattern: ScanPattern = ScanPattern.Raster,
+    def setup_scan(self, fast_axis: str, slow_axis: str,
+                   pattern: ScanPattern = ScanPattern.RASTER,
                    wait: bool = True):
         """setup scan pattern and define axes used for scanning.
-
         See ASI
         `SCAN Implementation <http://asiimaging.com/docs/products/serial_commands#commandscan_sn>`_
         for more details.
@@ -604,7 +595,7 @@ class TigerController:
         Note: fast and slow scan axes must be on the same tiger card.
 
         :param fast_axis: the axis declared as the fast-scan axis.
-        :param slow_axis_id: the axis declared as the slow-scan axis.
+        :param slow_axis: the axis declared as the slow-scan axis.
         :param pattern: :obj:`~tigerasi.device_codes.ScanPattern` enum.
             If unspecified, defaults to
             :obj:`~tigerasi.device_codes.ScanPattern.RASTER`.
@@ -637,7 +628,6 @@ class TigerController:
         """Setup the fast scanning axis start position and distance OR start
         position and number of pixels. To setup a scan, either scan_stop_mm
         or num_pixels must be specified, but not both.
-
         See ASI
         `SCANR Implementation <http://asiimaging.com/docs/commands/scanr>`_
         for more details.
@@ -688,7 +678,6 @@ class TigerController:
 
         Behavior is equivalent to:
         ``numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)``.
-
         See ASI
         `SCANV Implementation <http://asiimaging.com/docs/products/serial_commands#commandscanv_nv>`_
         for more details.
@@ -744,7 +733,6 @@ class TigerController:
                          card_address: int = None,
                          wait: bool = True):
         """Configure Tiger-based grid-like array scan.
-
         See ASI
         `ARRAY Implementation <http://asiimaging.com/docs/products/serial_commands#commandarray_ar>`_
         and `supplement <https://asiimaging.com/docs/array>`_ for more details.
@@ -806,7 +794,7 @@ class TigerController:
             'Z': round(delta_x_mm, MM_SCALE),
             'F': round(delta_y_mm, MM_SCALE),
             'T': round(theta_deg, DEG_SCALE)}
-        self._set_cmd_args_and_kwds(Cmds.ARRAY, **scan_params, wait=wait
+        self._set_cmd_args_and_kwds(Cmds.ARRAY, **scan_params, wait=wait,
                                     card_address=self._array_scan_card_addr)
 
     def start_array_scan(self, wait: bool = True):
