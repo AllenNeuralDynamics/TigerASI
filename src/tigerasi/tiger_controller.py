@@ -106,19 +106,22 @@ class TigerController:
         self.axes = set(self.ordered_axes)
 
         # Internal State Tracking to issue moves correctly.
+        self._scan_card_addr = None  # card address on which the scan axes exist.
+        self._scan_fast_axis = None
+        self._array_scan_card_addr = None  # card address on which the array scan axes exist.
         self._last_rel_move_axes = []  # axes specified in previous MOVEREL
         self._rb_axes = []  # axes specified as movable by ring buffer moves.
 
     def halt(self, wait: bool = True):
         """stop any moving axis."""
-        self.send(f"{Cmds.HALT.value}\r", wait=wait)
+        self._set_cmd_args_and_kwds(Cmds.HALT, wait=wait)
 
     # High-Level Commands
     @axis_check('wait')
     def move_relative(self, wait: bool = True, **axes: int):
-        """Move the axes specified by a relative amount.
-
-        Note: Units are in tenths of microns.
+        """Move the axes specified by a corresponding relative amount
+        (in tenths of microns). Unspecified axes will not be moved.
+        Implements `MOVEREL <http://asiimaging.com/docs/products/serial_commands#commandmovrel_r>`_ command.
 
         :param axes: one or more axes specified by name where the value is
             the relative position (in steps) to move to.
@@ -135,8 +138,9 @@ class TigerController:
 
     @axis_check('wait')
     def move_absolute(self, wait: bool = True, **axes: int):
-        """move the axes specified by the specified absolute amount
+        """move the axes specified by a corresponding absolute amount.
         (in tenths of microns). Unspecified axes will not be moved.
+        Implements `MOVE <http://asiimaging.com/docs/products/serial_commands#commandmove_m>`_ command.
 
         :param axes: one or more axes specified by name where the value is
             the absolute position (in steps) to move to.
@@ -153,6 +157,7 @@ class TigerController:
         """Move to the preset home position (or hard axis travel limit) for
         the specified axes. If the preset position is not reachable, move until
         a hardware stage limit is reached.
+        Implements `HOME <http://asiimaging.com/docs/products/serial_commands#commandhome>`_ command.
 
         Note: Because the homing procedure may either reach the specified
         software limit or a hardware limit, it is not safe to assume that
@@ -170,6 +175,7 @@ class TigerController:
     @no_repeated_axis_check
     def set_home(self, *axes: str, wait: bool = True, **kwd_axes: float):
         """Set the current or specified position to home to in [mm].
+        Implements `SETHOME <http://asiimaging.com/docs/products/serial_commands#commandsethome_hm>`_ command.
 
         Note: the values written here will persist across power cycles and
         adjust automatically such that the physical location remains constant.
@@ -193,15 +199,18 @@ class TigerController:
     @axis_check('wait')
     def reset_home(self, *axes: str, wait: bool = True):
         """Restore home values of the axes specified to firmware defaults.
+        Implements `SETHOME <http://asiimaging.com/docs/products/serial_commands#commandsethome_hm>`_ command.
 
         Note: the firmware default is intentionally an unreachable stage
         position such that each axis triggers its hardware stage limit.
         """
         return self._reset_setting(Cmds.SETHOME, *axes, wait=wait)
 
+    @axis_check()
     def get_home(self, *axes: str):
         """Return the position to home to in [mm] for the specified axes or all
         axes if none are specified.
+        Implements `SETHOME <http://asiimaging.com/docs/products/serial_commands#commandsethome_hm>`_ command.
 
         Note: the returned value will adjust automatically such that the
         physical location remains constant.
@@ -287,7 +296,7 @@ class TigerController:
         return self._get_axis_value(Cmds.SETLOW, *axes)
 
     @axis_check('wait')
-    def reset_lower_travel_limits(self, *axes: str, wait):
+    def reset_lower_travel_limits(self, *axes: str, wait: bool = True):
         """Restore lower travel limit on specified axes (or all if none are
         specified) to firmware defaults."""
         if not axes:
@@ -387,6 +396,7 @@ class TigerController:
     @axis_check('wait')
     def set_speed(self, wait: bool = True, **axes: float):
         """Set one or more axis speeds to a value in [mm/sec].
+        Implements `SPEED <http://asiimaging.com/docs/products/serial_commands#commandspeed_s>`_ command.
 
         :param axes: one or more axes specified by name where the value is
             the speed in [mm/sec].
@@ -512,13 +522,15 @@ class TigerController:
     @axis_check()
     @cache
     def get_encoder_ticks_per_mm(self, axis: str):
-        """Get <encoder ticks> / <mm of travel> for the specified axis."""
+        """Get <encoder ticks> / <mm of travel> for the specified axis.
+        Implements `CNTS <http://asiimaging.com/docs/commands/CNTS>`_ command.
+        """
         # TODO: can this function accept an arbitrary number of args?
         # FIXME: use _get_axis_value
         axis_str = f" {axis.upper()}?"
         cmd_str = Cmds.CNTS.value + axis_str + '\r'
         reply = self.send(cmd_str)
-        return float(reply.split('=')[-1])
+        return float(reply.split('=')[-1].split()[0])
 
     # TODO: consider making this function a hidden function that only gets
     #  called when a particular tigerbox command needs an axis specified by id.
@@ -558,12 +570,13 @@ class TigerController:
 
         self._set_cmd_args_and_kwds(Cmds.PM, **axes, wait=wait)
 
+    @axis_check()
     def get_axis_control_mode(self, axis: str):
         """Get axis control mode. Implements
         `PM <http://asiimaging.com/docs/commands/pm>`_ command.
 
         :param axis: the axis of interest.
-         :return: control mode (as a string) of the specified axis.
+        :return: control mode (as a string) of the specified axis.
         """
         # example reply appears as 'V=1 :A'
         # assume control mode is a single digit
@@ -571,53 +584,102 @@ class TigerController:
         # TODO: figure out which axis type it is and return that type of enum.
         return control_num
 
-    def start_scan(self, wait: bool = True):
-        """Start a scan that has been previously setup with scanr and scanv."""
-        #TODO: Figure out how to make command below work
-        # self.scan(ScanState.START)
-        cmd_str = Cmds.SCAN.value + '\r'
-        self.send(cmd_str, wait=wait)
+    def setup_scan(self, fast_axis: str, slow_axis: str,
+                   pattern: ScanPattern = ScanPattern.RASTER,
+                   wait: bool = True):
+        """setup scan pattern and define axes used for scanning.
+        See ASI
+        `SCAN Implementation <http://asiimaging.com/docs/products/serial_commands#commandscan_sn>`_
+        for more details.
 
-    def stop_scan(self):
-        """Stop an active scan."""
-        self.scan(ScanState.STOP)
+        Note: fast and slow scan axes must be on the same tiger card.
 
-    def scanr(self, scan_start_mm: float, scan_stop_mm: float = None,
-              pulse_interval_enc_ticks: int = 1, num_pixels: int = None,
-              retrace_speed: int = DEFAULT_SPEED_PERCENT, wait: bool = True):
+        :param fast_axis: the axis declared as the fast-scan axis.
+        :param slow_axis: the axis declared as the slow-scan axis.
+        :param pattern: :obj:`~tigerasi.device_codes.ScanPattern` enum.
+            If unspecified, defaults to
+            :obj:`~tigerasi.device_codes.ScanPattern.RASTER`.
+        :param wait: wait until the reply has been received.
+        """
+        # Confirm that fast and slow axes are on the same card.
+        cards = {self.axis_to_card[x][0]
+                 for x in [fast_axis.upper(), slow_axis.upper()]}
+        if len(cards) != 1:
+            raise RuntimeError("Fast and slow axes must be on the same card.")
+        self._scan_card_addr = cards.pop()
+        self._scan_fast_axis = fast_axis
+        # Firmware check.
+        self._has_firmware(self._scan_card_addr, FirmwareModules.SCAN_MODULE)
+        # Paramter setup.
+        fast_axis_id = self.get_axis_id(fast_axis) if fast_axis is not None else None
+        slow_axis_id = self.get_axis_id(slow_axis) if slow_axis is not None else None
+        kwds = {}
+        if fast_axis_id is not None:
+            kwds['Y'] = fast_axis_id
+        if slow_axis_id is not None:
+            kwds['Z'] = slow_axis_id
+        if pattern is not None:
+            kwds['F'] = pattern.value
+        self._set_cmd_args_and_kwds(Cmds.SCAN, **kwds, wait=wait,
+                                    card_address=self._scan_card_addr)
+
+    def scanr(self, scan_start_mm: float, pulse_interval_um: float,
+              scan_stop_mm: float = None, num_pixels: int = None,
+              retrace_speed_percent: int = DEFAULT_SPEED_PERCENT,
+              wait: bool = True):
         """Setup the fast scanning axis start position and distance OR start
         position and number of pixels. To setup a scan, either scan_stop_mm
         or num_pixels must be specified, but not both.
-
         See ASI
         `SCANR Implementation <http://asiimaging.com/docs/commands/scanr>`_
         for more details.
 
+        Note: meth:`setup_scan` must be run first.
+
         :param scan_start_mm: absolute position to start the scan.
+        :param pulse_interval_um: spacing (in [um]) between output pulses.
+            i.e: a pulse will output every `pulse_interval_um`.
         :param scan_stop_mm: absolute position to stop the scan. If
-            unspecified, num_pixels is required.
-        :param pulse_interval_enc_ticks: spacing (in encoder ticks) between
-            output pulses.
-            i.e: a pulse will output ever pulse_interval_enc_ticks.
+            unspecified, `num_pixels` is required.
         :param num_pixels:  number of pixels to output a pulse for. If
-            unspecified, scan_stop_mm is required.
-        :param retrace_speed: percentage (0-100) of how fast to backtrack to
-            the scan start position after finishing a scan.
+            unspecified, `scan_stop_mm` is required.
+        :param retrace_speed_percent: percentage (0-100) of how fast to
+            backtract to the scan start position after finishing a scan.
         :param wait: wait until the reply has been received.
         """
+
         # We can specify scan_stop_mm or num_pixels but not both (i.e: XOR).
         if not ((scan_stop_mm is None) ^ (num_pixels is None)):
             raise SyntaxError("Exclusively either scan_stop_mm or num_pixels "
                               "(i.e: one or the other, but not both) options "
                               "must be specified.")
-        # Build parameter list.
-        scan_stop_str = f" Y={round(scan_stop_mm, MM_SCALE)}" if scan_stop_mm else ""
-        num_pixels_str = f" F={num_pixels}" if num_pixels else ""
-        args_str = f" X={round(scan_start_mm, MM_SCALE)}{scan_stop_str}" \
-                   f" Z={pulse_interval_enc_ticks}{num_pixels_str}" \
-                   f" R={retrace_speed}"
-        cmd_str = Cmds.SCANR.value + args_str + '\r'
-        self.send(cmd_str, wait=wait)
+        # Confirm that fast and slow axes have been defined.
+        if self._scan_card_addr is None:
+            raise RuntimeError("Cannot infer the card address for which to "
+                               "apply the sttings. setup_scan must be run "
+                               "first.")
+
+        ENC_TICKS_PER_MM = self.get_encoder_ticks_per_mm(self._scan_fast_axis)
+        pulse_interval_enc_ticks_f = ENC_TICKS_PER_MM * pulse_interval_um * 1e-3
+        pulse_interval_enc_ticks = round(pulse_interval_enc_ticks_f)
+        if pulse_interval_enc_ticks != pulse_interval_enc_ticks_f:
+            rounded_pulse_interval_um = \
+                pulse_interval_enc_ticks/(ENC_TICKS_PER_MM * 1e-3)
+            self.log.debug(f"Requested scan {self._scan_fast_axis}-stack "
+                           f"spacing: {pulse_interval_um:1f}[um]. Actual "
+                           f"spacing: {rounded_pulse_interval_um:.1f}[um].")
+        # Parameter setup.
+        kwds = {
+            'X': round(scan_start_mm, MM_SCALE),
+            'Z': pulse_interval_enc_ticks}
+        if scan_stop_mm is not None:
+            kwds['Y'] = round(scan_stop_mm, MM_SCALE)
+        if num_pixels is not None:
+            kwds['F'] = num_pixels
+        if retrace_speed_percent is not None:
+            kwds['R'] = round(retrace_speed_percent)
+        self._set_cmd_args_and_kwds(Cmds.SCANR, **kwds, wait=wait,
+                                    card_address=self._scan_card_addr)
 
     def scanv(self, scan_start_mm: float, scan_stop_mm: float, line_count: int,
               overshoot_time_ms: int = None, overshoot_factor: float = None,
@@ -626,10 +688,11 @@ class TigerController:
 
         Behavior is equivalent to:
         ``numpy.linspace(scan_start_mm, scan_stop_mm, line_count, endpoint=False)``.
-
         See ASI
-        `SCANV Implementation <http://asiimaging.com/docs/commands/scanv>`_
+        `SCANV Implementation <http://asiimaging.com/docs/products/serial_commands#commandscanv_nv>`_
         for more details.
+
+        Note: meth:`setup_scan` must be run first.
 
         :param scan_start_mm: absolute position to start the scan in the slow
             axis dimension.
@@ -643,46 +706,41 @@ class TigerController:
             starting of pulses.
         :param wait: wait until the reply has been received.
         """
-        overshoot_time_str = f" F={overshoot_time_ms}" \
-            if overshoot_time_ms is not None else ""
-        overshoot_factor_str = f" T={round(overshoot_time_ms, MM_SCALE)}" \
-            if overshoot_time_ms is not None else ""
-        args_str = f" X={round(scan_start_mm, MM_SCALE)}" \
-                   f" Y={round(scan_stop_mm, MM_SCALE)}" \
-                   f" Z={line_count}{overshoot_time_str}{overshoot_factor_str}"
-        cmd_str = Cmds.SCANV.value + args_str + '\r'
-        self.send(cmd_str, wait=wait)
+        # Confirm that fast and slow axes have been defined.
+        if self._scan_card_addr is None:
+            raise RuntimeError("Cannot infer the card address for which to "
+                               "apply the sttings. setup_scan must be run "
+                               "first.")
+        kwds = {
+            'X': round(scan_start_mm, MM_SCALE),
+            'Y': round(scan_stop_mm, MM_SCALE),
+            'Z': line_count}
+        if overshoot_time_ms is not None:
+            kwds['F'] = round(overshoot_time_ms)
+        if overshoot_factor is not None:
+            kwds['T'] = round(overshoot_factor, MM_SCALE)
+        self._set_cmd_args_and_kwds(Cmds.SCANV, **kwds, wait=wait,
+                                    card_address=self._scan_card_addr)
 
-    # TODO: consider making this function take in lettered axes and
-    #   converting to axis ids under the hood.
-    def scan(self, state: ScanState = None, fast_axis_id: str = None,
-             slow_axis_id: str = None, pattern: ScanPattern = None,
-             wait: bool = True):
-        """start scan and define axes used for scanning.
+    def start_scan(self, wait: bool = True):
+        """Start a scan that has been previously setup with
+        :meth:`scanr` :meth:`scanv` and :meth:`setup_scan`."""
+        # Clear the card address for which the scan settings have been applied.
+        # Use the previously specified card address.
+        if self._scan_card_addr is None:
+            raise RuntimeError("Cannot infer the card address for which to "
+                               "apply the sttings. setup_scan must be "
+                               "run first.")
+        card_address = self._scan_card_addr
+        # Clear card address for which the scan settings were specified.
+        self._scan_card_addr = None
+        self._scan_fast_axis = None
+        self._set_cmd_args_and_kwds(Cmds.SCAN, ScanState.START.value,
+                                    wait=wait, card_address=card_address)
 
-        Note: fast_axis and slow_axis are specified via 'axis id', which can
-        be queried with the
-        :meth:`get_axis_id` query.
-
-        :param state: start or stop the scan depending on input scan
-            state.
-        :param fast_axis_id: the axis (specified via axis id) declared as the
-            fast-scan axis.
-        :param slow_axis_id: the axis (specified via axis id) declared as the
-            slow-scan axis.
-        :param pattern: Raster or Serpentine scan pattern.
-        :param wait: wait until the reply has been received.
-        """
-        scan_state_str = f" {state.value}" if state is not None else ""
-        fast_axis_str = f" Y={fast_axis_id}" \
-            if fast_axis_id is not None else ""
-        slow_axis_str = f" Z={slow_axis_id}" \
-            if slow_axis_id is not None else ""
-        pattern_str = f" F={pattern.value}" if pattern is not None else ""
-
-        cmd_str = Cmds.SCAN.value + scan_state_str + fast_axis_str \
-                  + slow_axis_str + pattern_str + '\r'
-        self.send(cmd_str, wait=wait)
+    def stop_scan(self, wait: bool = True):
+        """Stop an active scan."""
+        self._set_cmd_args_and_kwds(Cmds.SCAN, ScanState.STOP.value, wait=wait)
 
     def setup_array_scan(self,
                          x_points: int = 0, delta_x_mm: float = 0,
@@ -690,16 +748,13 @@ class TigerController:
                          theta_deg: float = 0,
                          x_start_mm: int = None,
                          y_start_mm: int = None,
+                         pattern: ScanPattern = ScanPattern.RASTER,
                          card_address: int = None,
                          wait: bool = True):
         """Configure Tiger-based grid-like array scan.
-
         See ASI
-        `ARRAY Implementation <https://asiimaging.com/docs/commands/array>`_
+        `ARRAY Implementation <http://asiimaging.com/docs/products/serial_commands#commandarray_ar>`_
         and `supplement <https://asiimaging.com/docs/array>`_ for more details.
-
-        Note: Raster or Serpentine mode is determined from the :meth:`scan`
-        method.
 
         Note: ASI docs recommend turning off backlash compensation on the scan
         axes, which can be done by setting compensation to zero (per axis) via
@@ -719,6 +774,9 @@ class TigerController:
             if left unspecified.
         :param y_start_mm: starting y axis location in [mm]. Current y position
             if left unspecified
+        :param pattern: :obj:`~tigerasi.device_codes.ScanPattern` enum.
+            If unspecified, defaults to
+            :obj:`~tigerasi.device_codes.ScanPattern.RASTER`.
         :param card_address: The card hex address on which to specify the move.
             If unspecified, defaults to the only card with an x and y axis or
             throws a RuntimeError if multiple xy cards or no xy cards exist.
@@ -730,16 +788,24 @@ class TigerController:
             if len(cards) != 1:
                 raise RuntimeError("Cannot infer the card address. It must be"
                                    "specified explicitly.")
-            card_address = cards.pop()  # Get the only set item.
-        self._has_firmware(card_address, FirmwareModules.ARRAY_MODULE)
+            self._array_scan_card_addr = cards.pop()  # Get the only set item.
+        else:
+            self._array_scan_card_addr = card_address
+        # Firmware check.
+        self._has_firmware(self._array_scan_card_addr,
+                           FirmwareModules.ARRAY_MODULE)
+        # Specify scan pattern if specified.
+        if pattern is not None:
+            self._set_cmd_args_and_kwds(Cmds.SCAN, F=pattern.value, wait=wait,
+                                        card_address=self._array_scan_card_addr)
         # Set start position.
         start_position = {}
         if x_start_mm is not None:
             start_position['X'] = round(x_start_mm, MM_SCALE)
         if y_start_mm is not None:
             start_position['Y'] = round(y_start_mm, MM_SCALE)
-        self._set_cmd_args_and_kwds(Cmds.AHOME, **start_position,
-                                    card_address=card_address, wait=wait)
+        self._set_cmd_args_and_kwds(Cmds.AHOME, **start_position, wait=wait,
+                                    card_address=self._array_scan_card_addr)
         # Setup scan.
         scan_params = {
             'X': x_points,
@@ -747,14 +813,26 @@ class TigerController:
             'Z': round(delta_x_mm, MM_SCALE),
             'F': round(delta_y_mm, MM_SCALE),
             'T': round(theta_deg, DEG_SCALE)}
-        self._set_cmd_args_and_kwds(Cmds.ARRAY, **scan_params,
-                                    card_address=card_address, wait=wait)
+        self._set_cmd_args_and_kwds(Cmds.ARRAY, **scan_params, wait=wait,
+                                    card_address=self._array_scan_card_addr)
 
-    def start_array_scan(self, card_address: int = None, wait: bool = True):
+    def start_array_scan(self, wait: bool = True):
         """Start an array scan with parameters set by :meth:`setup_array_scan`.
         Note that this command is not needed if the scan is setup for external
         TTL pin triggering.
+
+        Note: :meth:`setup_array_scan` must be run first.
+
+        :param wait: wait until the reply has been received.
         """
+        # Use the previously specified card address.
+        if self._array_scan_card_addr is None:
+            raise RuntimeError("Cannot infer the card address for which to "
+                               "apply the sttings. setup_array_scan must be "
+                               "run first.")
+        card_address = self._array_scan_card_addr
+        # Clear card address for which the array-scan settings were specified.
+        self._array_scan_card_addr = None
         self._set_cmd_args_and_kwds(Cmds.ARRAY, card_address=card_address,
                                     wait=wait)
 
@@ -1127,7 +1205,7 @@ class TigerController:
             axis_to_type[axis] = axis_type
         return axis_to_type
 
-    def get_pzinfo(self, card_address):
+    def get_pzinfo(self, card_address: int):
         """return the configuration of the specified card.
 
         :return: a dict

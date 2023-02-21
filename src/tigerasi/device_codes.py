@@ -88,8 +88,8 @@ class JoystickInput(Enum):
 class ScanState(Enum):
     """Scan states"""
     # http://asiimaging.com/docs/commands/scan
-    START = b'S'
-    STOP = b'P'
+    START = 'S'
+    STOP = 'P'
     # More read-only scan states exist, but are not captured here.
 
 
