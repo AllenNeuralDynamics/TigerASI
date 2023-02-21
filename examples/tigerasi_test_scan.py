@@ -14,7 +14,7 @@ logger.addHandler(logging.StreamHandler())
 logger.handlers[-1].setFormatter(
    logging.Formatter(fmt='%(asctime)s:%(levelname)s: %(message)s'))
 
-PORT_NAME = "COM10"  # a string indicating the port name.
+PORT_NAME = "COM3"  # a string indicating the port name.
 # port name can be left as None on Linux if udev rules were installed.
 
 print("Connecting to Tiger Controller... ", end=" ", flush=True)
@@ -26,11 +26,11 @@ print("Done.")
 
 print("Test scan commands")
 # Conduct one scan line of 100 tiles with the fast_axis in the x direction.
-start_z, start_y = (0, 0)
+start_x, start_y = (0, 0)
 tile_count = 100
 tigerbox.set_speed(x=0.01)  # [mm/sec]
 tigerbox.setup_scan(fast_axis='x', slow_axis='y', pattern=ScanPattern.RASTER)
-tigerbox.scanr(scan_start_mm=start_z, pulse_interval_um=10,
+tigerbox.scanr(scan_start_mm=start_x, pulse_interval_um=10,
                num_pixels=tile_count)
 tigerbox.scanv(scan_start_mm=start_y, scan_stop_mm=start_y, line_count=1)
 tigerbox.start_scan()

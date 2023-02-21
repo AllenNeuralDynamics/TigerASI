@@ -530,7 +530,7 @@ class TigerController:
         axis_str = f" {axis.upper()}?"
         cmd_str = Cmds.CNTS.value + axis_str + '\r'
         reply = self.send(cmd_str)
-        return float(reply.split('=')[-1])
+        return float(reply.split('=')[-1].split()[0])
 
     # TODO: consider making this function a hidden function that only gets
     #  called when a particular tigerbox command needs an axis specified by id.
@@ -719,17 +719,24 @@ class TigerController:
             kwds['F'] = round(overshoot_time_ms)
         if overshoot_factor is not None:
             kwds['T'] = round(overshoot_factor, MM_SCALE)
-        self._set_cmd_args_and_kwds(Cmds.SCANR, **kwds, wait=wait,
+        self._set_cmd_args_and_kwds(Cmds.SCANV, **kwds, wait=wait,
                                     card_address=self._scan_card_addr)
 
     def start_scan(self, wait: bool = True):
         """Start a scan that has been previously setup with
         :meth:`scanr` :meth:`scanv` and :meth:`setup_scan`."""
         # Clear the card address for which the scan settings have been applied.
+        # Use the previously specified card address.
+        if self._scan_card_addr is None:
+            raise RuntimeError("Cannot infer the card address for which to "
+                               "apply the sttings. setup_scan must be "
+                               "run first.")
+        card_address = self._scan_card_addr
+        # Clear card address for which the scan settings were specified.
         self._scan_card_addr = None
         self._scan_fast_axis = None
         self._set_cmd_args_and_kwds(Cmds.SCAN, ScanState.START.value,
-                                    wait=wait)
+                                    wait=wait, card_address=card_address)
 
     def stop_scan(self, wait: bool = True):
         """Stop an active scan."""
