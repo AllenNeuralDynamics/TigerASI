@@ -584,7 +584,6 @@ class TigerController:
         # TODO: figure out which axis type it is and return that type of enum.
         return control_num
 
-    @axis_check('pattern', 'wait')
     def setup_scan(self, fast_axis: str, slow_axis: str,
                    pattern: ScanPattern = ScanPattern.RASTER,
                    wait: bool = True):
@@ -603,7 +602,8 @@ class TigerController:
         :param wait: wait until the reply has been received.
         """
         # Confirm that fast and slow axes are on the same card.
-        cards = {self.axis_to_card[x][0] for x in [fast_axis, slow_axis]}
+        cards = {self.axis_to_card[x][0]
+                 for x in [fast_axis.upper(), slow_axis.upper()]}
         if len(cards) != 1:
             raise RuntimeError("Fast and slow axes must be on the same card.")
         self._scan_card_addr = cards.pop()
@@ -615,12 +615,12 @@ class TigerController:
         slow_axis_id = self.get_axis_id(slow_axis) if slow_axis is not None else None
         kwds = {}
         if fast_axis_id is not None:
-            params['Y'] = fast_axis_id
+            kwds['Y'] = fast_axis_id
         if slow_axis_id is not None:
-            params['Z'] = slow_axis_id
+            kwds['Z'] = slow_axis_id
         if pattern is not None:
-            params['F'] = pattern.value
-        self._set_cmd_args_and_kwds(Cmds.SCAN, *args, **kwds, wait=wait,
+            kwds['F'] = pattern.value
+        self._set_cmd_args_and_kwds(Cmds.SCAN, **kwds, wait=wait,
                                     card_address=self._scan_card_addr)
 
     def scanr(self, scan_start_mm: float, pulse_interval_um: float,
@@ -676,8 +676,8 @@ class TigerController:
             kwds['Y'] = round(scan_stop_mm, MM_SCALE)
         if num_pixels is not None:
             kwds['F'] = num_pixels
-        if retrace_speed is not None:
-            kwds['R'] = round(retrace_speed)
+        if retrace_speed_percent is not None:
+            kwds['R'] = round(retrace_speed_percent)
         self._set_cmd_args_and_kwds(Cmds.SCANR, **kwds, wait=wait,
                                     card_address=self._scan_card_addr)
 
@@ -711,14 +711,14 @@ class TigerController:
             raise RuntimeError("Cannot infer the card address for which to "
                                "apply the sttings. setup_scan must be run "
                                "first.")
-        kwds= {
+        kwds = {
             'X': round(scan_start_mm, MM_SCALE),
             'Y': round(scan_stop_mm, MM_SCALE),
             'Z': line_count}
         if overshoot_time_ms is not None:
-            scan_params['F'] = round(overshoot_time_ms)
+            kwds['F'] = round(overshoot_time_ms)
         if overshoot_factor is not None:
-            scan_params['T'] = round(overshoot_factor, MM_SCALE)
+            kwds['T'] = round(overshoot_factor, MM_SCALE)
         self._set_cmd_args_and_kwds(Cmds.SCANR, **kwds, wait=wait,
                                     card_address=self._scan_card_addr)
 
@@ -728,11 +728,12 @@ class TigerController:
         # Clear the card address for which the scan settings have been applied.
         self._scan_card_addr = None
         self._scan_fast_axis = None
-        self._set_cmd_args_and_kwds(Cmds.SCAN, ScanState.START, wait=wait)
+        self._set_cmd_args_and_kwds(Cmds.SCAN, ScanState.START.value,
+                                    wait=wait)
 
     def stop_scan(self, wait: bool = True):
         """Stop an active scan."""
-        self._set_cmd_args_and_kwds(Cmds.SCAN, ScanState.STOP, wait=wait)
+        self._set_cmd_args_and_kwds(Cmds.SCAN, ScanState.STOP.value, wait=wait)
 
     def setup_array_scan(self,
                          x_points: int = 0, delta_x_mm: float = 0,
