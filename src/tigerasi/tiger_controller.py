@@ -107,6 +107,7 @@ class TigerController:
 
         # Internal State Tracking to issue moves correctly.
         self._scan_card_addr = None  # card address on which the scan axes exist.
+        self._scan_fast_axis = None
         self._array_scan_card_addr = None  # card address on which the array scan axes exist.
         self._last_rel_move_axes = []  # axes specified in previous MOVEREL
         self._rb_axes = []  # axes specified as movable by ring buffer moves.
@@ -606,6 +607,7 @@ class TigerController:
         if len(cards) != 1:
             raise RuntimeError("Fast and slow axes must be on the same card.")
         self._scan_card_addr = cards.pop()
+        self._scan_fast_axis = fast_axis
         # Firmware check.
         self._has_firmware(self._scan_card_addr, FirmwareModules.SCAN_MODULE)
         # Paramter setup.
@@ -621,8 +623,8 @@ class TigerController:
         self._set_cmd_args_and_kwds(Cmds.SCAN, *args, **kwds, wait=wait,
                                     card_address=self._scan_card_addr)
 
-    def scanr(self, scan_start_mm: float, scan_stop_mm: float = None,
-              pulse_interval_mm: float = None, num_pixels: int = None,
+    def scanr(self, scan_start_mm: float, pulse_interval_um: float,
+              scan_stop_mm: float = None, num_pixels: int = None,
               retrace_speed_percent: int = DEFAULT_SPEED_PERCENT,
               wait: bool = True):
         """Setup the fast scanning axis start position and distance OR start
@@ -635,10 +637,10 @@ class TigerController:
         Note: meth:`setup_scan` must be run first.
 
         :param scan_start_mm: absolute position to start the scan.
+        :param pulse_interval_um: spacing (in [um]) between output pulses.
+            i.e: a pulse will output every `pulse_interval_um`.
         :param scan_stop_mm: absolute position to stop the scan. If
             unspecified, `num_pixels` is required.
-        :param pulse_interval_mm: spacing (in [mm]) between output pulses.
-            i.e: a pulse will output every `pulse_interval_mm`.
         :param num_pixels:  number of pixels to output a pulse for. If
             unspecified, `scan_stop_mm` is required.
         :param retrace_speed_percent: percentage (0-100) of how fast to
@@ -656,16 +658,24 @@ class TigerController:
             raise RuntimeError("Cannot infer the card address for which to "
                                "apply the sttings. setup_scan must be run "
                                "first.")
-        pulse_interval_enc_ticks = round(self.get_encoder_ticks_per_mm()
-                                         * pulse_interval_mm)
+
+        ENC_TICKS_PER_MM = self.get_encoder_ticks_per_mm(self._scan_fast_axis)
+        pulse_interval_enc_ticks_f = ENC_TICKS_PER_MM * pulse_interval_um * 1e-3
+        pulse_interval_enc_ticks = round(pulse_interval_enc_ticks_f)
+        if pulse_interval_enc_ticks != pulse_interval_enc_ticks_f:
+            rounded_pulse_interval_um = \
+                pulse_interval_enc_ticks/(ENC_TICKS_PER_MM * 1e-3)
+            self.log.debug(f"Requested scan {self._scan_fast_axis}-stack "
+                           f"spacing: {pulse_interval_um:1f}[um]. Actual "
+                           f"spacing: {rounded_pulse_interval_um:.1f}[um].")
         # Parameter setup.
-        kwds = {'X': round(scan_start_mm, MM_SCALE)}
+        kwds = {
+            'X': round(scan_start_mm, MM_SCALE),
+            'Z': pulse_interval_enc_ticks}
         if scan_stop_mm is not None:
             kwds['Y'] = round(scan_stop_mm, MM_SCALE)
         if num_pixels is not None:
             kwds['F'] = num_pixels
-        if pulse_interval_enc_ticks is not None:
-            kwds['Z'] = pulse_interval_enc_ticks
         if retrace_speed is not None:
             kwds['R'] = round(retrace_speed)
         self._set_cmd_args_and_kwds(Cmds.SCANR, **kwds, wait=wait,
@@ -717,6 +727,7 @@ class TigerController:
         :meth:`scanr` :meth:`scanv` and :meth:`setup_scan`."""
         # Clear the card address for which the scan settings have been applied.
         self._scan_card_addr = None
+        self._scan_fast_axis = None
         self._set_cmd_args_and_kwds(Cmds.SCAN, ScanState.START, wait=wait)
 
     def stop_scan(self, wait: bool = True):
