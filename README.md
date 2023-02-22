@@ -90,8 +90,7 @@ This list includes joystick enabling/disabling and remapping, setting stage trav
 For a breakdown of what commands have been exposed, have a look at the [examples folder](https://github.com/AllenNeuralDynamics/TigerASI/tree/main/examples) and the docs.
 
 ## Documentation
-Docs can be generated via Sphinx.
-Stay tuned for docs made available online.
+Docs can be generated via Sphinx but are also available on [readthedocs](https://tigerasi.readthedocs.io/en/latest/).
 
 ## Implementation Details
 
