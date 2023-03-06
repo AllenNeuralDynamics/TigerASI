@@ -83,8 +83,9 @@ class TigerController:
             self.ser.reset_input_buffer()
             self.ser.reset_output_buffer()
         except SerialException as e:
-            print("Error: could not open connection to Tiger Controller. "
-                  "Is the device plugged in? Is another program using it?")
+            logging.error("Error: could not open connection to Tiger "
+                  "Controller. Is the device plugged in? Is another program "
+                  "using it?")
             raise
         self._last_cmd_send_time = perf_counter()
 
@@ -634,11 +635,15 @@ class TigerController:
         `SCANR Implementation <http://asiimaging.com/docs/commands/scanr>`_
         for more details.
 
-        Note: meth:`setup_scan` must be run first.
+        Note: :meth:`setup_scan` must be run first.
 
         :param scan_start_mm: absolute position to start the scan.
         :param pulse_interval_um: spacing (in [um]) between output pulses.
-            i.e: a pulse will output every `pulse_interval_um`.
+            i.e: a pulse will output every `pulse_interval_um`. Note that this
+            value will be rounded to the nearest encoder tick. To set scan
+            spacing to an exact encoder tick value, check
+            :meth:`get_encoder_ticks_per_mm`. The logger will log a
+            warning if the actual value in [um] was rounded.
         :param scan_stop_mm: absolute position to stop the scan. If
             unspecified, `num_pixels` is required.
         :param num_pixels:  number of pixels to output a pulse for. If
@@ -646,6 +651,7 @@ class TigerController:
         :param retrace_speed_percent: percentage (0-100) of how fast to
             backtract to the scan start position after finishing a scan.
         :param wait: wait until the reply has been received.
+
         """
 
         # We can specify scan_stop_mm or num_pixels but not both (i.e: XOR).
@@ -665,7 +671,7 @@ class TigerController:
         if pulse_interval_enc_ticks != pulse_interval_enc_ticks_f:
             rounded_pulse_interval_um = \
                 pulse_interval_enc_ticks/(ENC_TICKS_PER_MM * 1e-3)
-            self.log.debug(f"Requested scan {self._scan_fast_axis}-stack "
+            self.log.warning(f"Requested scan {self._scan_fast_axis}-stack "
                            f"spacing: {pulse_interval_um:1f}[um]. Actual "
                            f"spacing: {rounded_pulse_interval_um:.1f}[um].")
         # Parameter setup.
@@ -692,7 +698,7 @@ class TigerController:
         `SCANV Implementation <http://asiimaging.com/docs/products/serial_commands#commandscanv_nv>`_
         for more details.
 
-        Note: meth:`setup_scan` must be run first.
+        Note: :meth:`setup_scan` must be run first.
 
         :param scan_start_mm: absolute position to start the scan in the slow
             axis dimension.
