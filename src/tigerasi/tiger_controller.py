@@ -430,7 +430,9 @@ class TigerController:
 
     @axis_check()
     def bind_axis_to_joystick_input(self, **axes: JoystickInput):
-        """Map a tiger axis to a joystick input.
+        """Map a tiger axis to a joystick input. Implements
+        `J <http://asiimaging.com/docs/products/serial_commands#commandjoystick_j>`_
+        command.
 
         Note: binding a tigerbox stage axis to a joystick input does not affect
         the direction of the input. To change the direction, you must use the
@@ -456,7 +458,9 @@ class TigerController:
     @axis_check()
     def get_joystick_axis_mapping(self, *axes: str):
         """Get the axis mapping currently set on the joystick for the requested
-            axes (or all if none are requested)
+        axes (or all if none are requested). Implements.
+        `J <http://asiimaging.com/docs/products/serial_commands#commandjoystick_j>`_
+        command.
 
         :return: a dict, keyed by (upper-case) axis, who's values are of type
             :obj:`~tigerasi.device_codes.JoystickInput` representing the
@@ -470,7 +474,9 @@ class TigerController:
 
     @axis_check()
     def set_joystick_axis_polarity(self, **axes: JoystickPolarity):
-        """Set the joystick polarity of the axes specified.
+        """Set the joystick polarity of the axes specified. Implements
+        `J <http://asiimaging.com/docs/products/serial_commands#commandjoystick_j>`_
+        command.
 
         .. code-block:: python
 
@@ -491,7 +497,9 @@ class TigerController:
     @axis_check()
     def enable_joystick_inputs(self, *axes: str):
         """Enable specified (or all if none are specified) axis control through
-        the joystick.
+        the joystick. Implements
+        `J <http://asiimaging.com/docs/products/serial_commands#commandjoystick_j>`_
+        command.
 
         :param axes: one or more axes to re-enable joystick control for (or all
             if none are specified).
@@ -510,7 +518,9 @@ class TigerController:
     @axis_check()
     def disable_joystick_inputs(self, *axes: str):
         """Disable specified (or all if none are specified) axis control
-        through the joystick.
+        through the joystick. Implements
+        `J <http://asiimaging.com/docs/products/serial_commands#commandjoystick_j>`_
+        command.
 
         :param args: one or more axes to disable joystick control for (or all
             if none are specified).
