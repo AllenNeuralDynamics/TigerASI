@@ -195,3 +195,6 @@ class SimTigerController(TigerController):
         """Clear input buffer and reset skipped replies."""
         self.skipped_replies = 0
 
+    @axis_check('wait')
+    def get_etl_temp(self, axis: str, wait: bool = True):
+        return 23.15
