@@ -509,6 +509,18 @@ class TigerController:
             box.enable_joystick_inputs('y')  # Enable joystick control of y axis.
             box.enable_joystick_inputs()  # Enable joystick control of all axes.
 
+        Note: enabling joystick inputs will re-apply their default axis
+        mapping. To disable/enable joystick inputs with a custom axis mapping,
+        you must save the current axis mapping before disabling joystick
+        inputs and then reapply it after enabling joystick inputs.
+
+        ..code-block:: python
+
+            axis_map = box.get_joystick_axis_mapping()  # Get current axis map for all axes.
+            box.disable_joystick_inputs()  # Disable all joystick inputs.
+            box.enable_joystick_inputs()  # Enable all joystick inputs. Default axis map is applied.
+            box.bind_axis_to_joystick_input(**axis_map)  # Reapply original axis map for all axes.
+
         """
         if not axes:
             axes = self.ordered_axes
