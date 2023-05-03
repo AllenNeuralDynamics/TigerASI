@@ -514,7 +514,7 @@ class TigerController:
         you must save the current axis mapping before disabling joystick
         inputs and then reapply it after enabling joystick inputs.
 
-        ..code-block:: python
+        .. code-block:: python
 
             axis_map = box.get_joystick_axis_mapping()  # Get current axis map for all axes.
             box.disable_joystick_inputs()  # Disable all joystick inputs.
