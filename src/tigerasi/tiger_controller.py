@@ -1025,8 +1025,14 @@ class TigerController:
         if sleep_time > 0:
             sleep(sleep_time)
         # Send the inquiry.
-        reply = self.send(f"{Cmds.STATUS.value}\r").rstrip('\r\n')
+        reply = self.send(f"{Cmds.STATUS.value}\r").rstrip('\r\n').strip()
         # interpret reply.
+        # Sometimes tigerbox replies with ACK to this cmd instead of B or N.
+        # Re-issue cmd if we received an ACK.
+        if reply == ACK:
+            self.log.warning("Received ':A' when we expected 'N' or 'B'. "
+                             "Re-issuing command.")
+            reply = self.send(f"{Cmds.STATUS.value}\r").rstrip('\r\n').strip()
         if reply == "B":
             return True
         elif reply == "N":
