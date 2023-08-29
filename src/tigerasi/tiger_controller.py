@@ -1024,8 +1024,8 @@ class TigerController:
         sleep_time = REPLY_WAIT_TIME_S - time_since_last_cmd
         if sleep_time > 0:
             sleep(sleep_time)
-        # Send the inquiry.
-        reply = self.send(f"{Cmds.STATUS.value}\r").rstrip('\r\n').strip()
+        # Send the inquiry. Handle: ":A \r\n" and ":A\r\n"
+        reply = self.send(f"{Cmds.STATUS.value}\r").rstrip().rstrip('\r\n')
         # interpret reply.
         # Sometimes tigerbox replies with ACK to this cmd instead of B or N.
         # Re-issue cmd if we received an ACK.
