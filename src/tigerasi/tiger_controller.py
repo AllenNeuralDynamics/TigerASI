@@ -1069,9 +1069,44 @@ class TigerController:
             raise RuntimeError(f"Error. Cannot tell if device is moving. "
                                f"Received: '{reply}'")
 
+    # TODO: this needs to be tested
+    @axis_check()
+    def is_axis_moving(self, *axis: str):
+        """blocks. True if the one specified axis is moving. False otherwise."""
+        # Wait at least 20[ms] following the last time we sent a command.
+        # (Handles edge case where the last command was sent with wait=False.)
+        time_since_last_cmd = perf_counter() - self._last_cmd_send_time
+        sleep_time = REPLY_WAIT_TIME_S - time_since_last_cmd
+        if sleep_time > 0:
+            sleep(sleep_time)
+        axes_str = f" {axis.upper()}?"
+        # Send the inquiry. Handle: ":A \r\n" and ":A\r\n"
+        reply = self.send(f"{Cmds.RDSTAT.value + axes_str}\r").rstrip().rstrip('\r\n')
+        # interpret reply.
+        # Sometimes tigerbox replies with ACK to this cmd instead of B or N.
+        # Re-issue cmd if we received an ACK.
+        if reply == ACK:
+            self.log.warning("Received ':A' when we expected 'N' or 'B'. "
+                             "Re-issuing command.")
+            reply = self.send(f"{Cmds.RDSTAT.value + axes_str}\r").rstrip('\r\n').strip()
+        if reply == "B":
+            return True
+        elif reply == "N":
+            return False
+        else:
+            raise RuntimeError(f"Error. Cannot tell if axis is moving. "
+                               f"Received: '{reply}'")
+
     def wait(self):
         """Block until tigerbox is idle."""
         while self.is_moving():
+            pass
+
+    # TODO: thisneeds to be tested
+    @axis_check()
+    def wait_on_axis(self, *axis: str):
+        """Block until specified axis is idle."""
+        while self.is_axis_moving(axis):
             pass
 
     def clear_incoming_message_queue(self):
