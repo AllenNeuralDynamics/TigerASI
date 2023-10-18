@@ -11,6 +11,7 @@ import logging
 STEPS_PER_UM = 10.0  # multiplication constant to convert micrometers to steps.
 MM_SCALE = 4
 DEG_SCALE = 3
+MS_SCALE = 0
 DEFAULT_SPEED_PERCENT = 67.0
 DEFAULT_SPEED_MM_PER_SEC = 7.68 * 67.0
 REPLY_WAIT_TIME_S = 0.020  # minimum time to wait for a reply after having
@@ -427,6 +428,41 @@ class TigerController:
 
         """
         return self._get_axis_value(Cmds.SPEED, *axes)
+
+    # TODO: needs testing.
+    @axis_check('wait')
+    def set_acceleration(self, wait: bool = True, **axes: float):
+        """Set one or more axis accelerations to a value in [ms].
+        Implements `ACCEL <https://www.asiimaging.com/docs/products/serial_commands#commandaccel_ac>`_ command.
+
+        :param axes: one or more axes specified by name where the value is
+            the acceleration in [ms].
+        :param wait: wait until the reply has been received.
+
+        .. code-block:: python
+
+            box.set_acceleration(x=100, y=70)
+
+        """
+        # Round axes values in ms to 0 decimal places.
+        axes = {x: round(v, MS_SCALE) for x, v in axes.items()}
+        self._set_cmd_args_and_kwds(Cmds.ACCEL, **axes, wait=wait)
+
+    # TODO: needs testing.
+    @axis_check()
+    def get_acceleration(self, *axes: str):
+        """return the acceleration from the specified axis in [ms] or all axes if
+        none are specified.
+
+        :param axes: one or more lettered axes (case insensitive).
+        :return: speed of requested axes in dict form (upper case).
+
+        .. code-block:: python
+
+            box.get_acceleration('x', 'z')  # returns: {'X': 100, 'Y': 70}
+
+        """
+        return self._get_axis_value(Cmds.ACCEL, *axes)
 
     @axis_check()
     def bind_axis_to_joystick_input(self, **axes: JoystickInput):
