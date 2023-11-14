@@ -413,7 +413,6 @@ class TigerController:
         axes = {x: round(v, MM_SCALE) for x, v in axes.items()}
         self._set_cmd_args_and_kwds(Cmds.SPEED, **axes, wait=wait)
 
-    # TODO: needs testing.
     @axis_check()
     def get_speed(self, *axes: str):
         """return the speed from the specified axis in [mm/s] or all axes if
@@ -429,9 +428,8 @@ class TigerController:
         """
         return self._get_axis_value(Cmds.SPEED, *axes)
 
-    # TODO: needs testing.
     @axis_check('wait')
-    def set_acceleration(self, wait: bool = True, **axes: float):
+    def set_acceleration(self, **axes: float):
         """Set one or more axis accelerations to a value in [ms].
         Implements `ACCEL <https://www.asiimaging.com/docs/products/serial_commands#commandaccel_ac>`_ command.
 
@@ -446,9 +444,8 @@ class TigerController:
         """
         # Round axes values in ms to 0 decimal places.
         axes = {x: round(v, MS_SCALE) for x, v in axes.items()}
-        self._set_cmd_args_and_kwds(Cmds.ACCEL, **axes, wait=wait)
+        self._set_cmd_args_and_kwds(Cmds.ACCEL, **axes)
 
-    # TODO: needs testing.
     @axis_check()
     def get_acceleration(self, *axes: str):
         """return the acceleration from the specified axis in [ms] or all axes if
