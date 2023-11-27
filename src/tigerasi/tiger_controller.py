@@ -1045,41 +1045,29 @@ class TigerController:
         return bool(int(reply.lstrip(':A ')))
 
     def is_moving(self):
-        """blocks. True if any axes is moving. False otherwise."""
-        # Wait at least 20[ms] following the last time we sent a command.
-        # (Handles edge case where the last command was sent with wait=False.)
-        time_since_last_cmd = perf_counter() - self._last_cmd_send_time
-        sleep_time = REPLY_WAIT_TIME_S - time_since_last_cmd
-        if sleep_time > 0:
-            sleep(sleep_time)
-        # Send the inquiry. Handle: ":A \r\n" and ":A\r\n"
-        reply = self.send(f"{Cmds.STATUS.value}\r").rstrip().rstrip('\r\n')
-        # interpret reply.
-        # Sometimes tigerbox replies with ACK to this cmd instead of B or N.
-        # Re-issue cmd if we received an ACK.
-        if reply == ACK:
-            self.log.warning("Received ':A' when we expected 'N' or 'B'. "
-                             "Re-issuing command.")
-            reply = self.send(f"{Cmds.STATUS.value}\r").rstrip('\r\n').strip()
-        if reply == "B":
-            return True
-        elif reply == "N":
-            return False
-        else:
-            raise RuntimeError(f"Error. Cannot tell if device is moving. "
-                               f"Received: '{reply}'")
+        """True if any axes is moving. False otherwise. Blocks."""
+        return self.are_axes_moving()
+
+    def is_axis_moving(self, axis: str):
+        """True if the specified axis is moving. False otherwise. Blocks."""
+        return self.are_axes_moving(axis).items()[0] # True or False
 
     @axis_check()
-    def is_axis_moving(self, axis: str):
-        """blocks. True if the one specified axis is moving. False otherwise."""
+    def are_axes_moving(self, *axes: str):
+        """Return a dict of booleans, keyed by axis, indicating whether the
+        specified axes are (True) or are not (False) moving. Defaults to all
+        lettered axes if none are specified. Blocks. Implements
+        `RDSTAT <http://asiimaging.com/docs/products/serial_commands#commandrdstat_rs>`_
+        command."""
         # Wait at least 20[ms] following the last time we sent a command.
         # (Handles edge case where the last command was sent with wait=False.)
-        print(axis)
         time_since_last_cmd = perf_counter() - self._last_cmd_send_time
         sleep_time = REPLY_WAIT_TIME_S - time_since_last_cmd
         if sleep_time > 0:
             sleep(sleep_time)
-        axes_str = f" {axis.upper()}?"
+        if not axes:  # Default to all lettered axes if none are specified.
+            axes = [x for x in self.ordered_axes if not x.isnumeric()]
+        axes_str = ' '.join([f"{x.upper()}?" for x in axes])
         # Send the inquiry. Handle: ":A \r\n" and ":A\r\n" and remove ":A " from reply
         reply = self.send(f"{Cmds.RDSTAT.value + axes_str}\r").rstrip().rstrip('\r\n').lstrip(ACK).lstrip()
         # interpret reply.
@@ -1089,24 +1077,23 @@ class TigerController:
             self.log.warning("Received ':A' when we expected 'N' or 'B'. "
                              "Re-issuing command.")
             reply = self.send(f"{Cmds.RDSTAT.value + axes_str}\r").rstrip().rstrip('\r\n').lstrip(ACK).lstrip()
-        if reply == "B":
-            return True
-        elif reply == "N":
-            return False
-        else:
-            raise RuntimeError(f"Error. Cannot tell if axis is moving. "
+
+        axis_states = reply.lstrip(Cmds.RDSTAT.value).split()]
+        if 'B' not in reply and 'N' not in reply:
+            raise RuntimeError(f"Error. Cannot tell if axes are moving. "
                                f"Received: '{reply}'")
+        return {x.upper():state for x,state in zip(axes, axis_states)}
 
     def wait(self):
         """Block until tigerbox is idle."""
         while self.is_moving():
             pass
 
-    # TODO: thisneeds to be tested
+    # TODO: this needs to be tested
     @axis_check()
-    def wait_on_axis(self, *axis: str):
+    def wait_on_axis(self, *axes: str):
         """Block until specified axis is idle."""
-        while self.is_axis_moving(axis):
+        while True in self.is_axis_moving(*axes).items():
             pass
 
     def clear_incoming_message_queue(self):
