@@ -36,6 +36,7 @@ class Cmds(Enum):
     PZINFO = "PZINFO" # [card address]PZINFO
     Z2B = "Z2B"  # Z2B Y? |or| Z2B Y=1 to set the axis id.
     INFO = "INFO" # INFO [axis]
+    ACCEL = "AC"
 
 
 class ErrorCodes(Enum):
