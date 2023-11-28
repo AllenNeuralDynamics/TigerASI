@@ -1050,7 +1050,7 @@ class TigerController:
 
     def is_axis_moving(self, axis: str):
         """True if the specified axis is moving. False otherwise. Blocks."""
-        return self.are_axes_moving(axis).items()[0] # True or False
+        return next(iter(self.are_axes_moving(axis).items()))[-1] # True or False
 
     @axis_check()
     def are_axes_moving(self, *axes: str):
@@ -1067,7 +1067,7 @@ class TigerController:
             sleep(sleep_time)
         if not axes:  # Default to all lettered axes if none are specified.
             axes = [x for x in self.ordered_axes if not x.isnumeric()]
-        axes_str = ' '.join([f"{x.upper()}?" for x in axes])
+        axes_str = ''.join([f" {x.upper()}?" for x in axes])
         # Send the inquiry. Handle: ":A \r\n" and ":A\r\n" and remove ":A " from reply
         reply = self.send(f"{Cmds.RDSTAT.value + axes_str}\r").rstrip().rstrip('\r\n').lstrip(ACK).lstrip()
         # interpret reply.
@@ -1078,11 +1078,11 @@ class TigerController:
                              "Re-issuing command.")
             reply = self.send(f"{Cmds.RDSTAT.value + axes_str}\r").rstrip().rstrip('\r\n').lstrip(ACK).lstrip()
 
-        axis_states = reply.lstrip(Cmds.RDSTAT.value).split()]
+        axis_states = list(reply)
         if 'B' not in reply and 'N' not in reply:
             raise RuntimeError(f"Error. Cannot tell if axes are moving. "
                                f"Received: '{reply}'")
-        return {x.upper():state for x,state in zip(axes, axis_states)}
+        return {x.upper(): state == 'B' for x, state in zip(axes, axis_states)}
 
     def wait(self):
         """Block until tigerbox is idle."""
