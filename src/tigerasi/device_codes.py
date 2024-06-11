@@ -144,6 +144,7 @@ class RingBufferMode(Enum):
 class TTLIn0Mode(Enum):
     OFF = 0
     MOVE_TO_NEXT_ABS_POSITION = 1
+    ENC_INT = 1  # ENC_INT module https://asiimaging.com/docs/scan_module.
     REPEAT_LAST_REL_MOVE = 2
     AUTOFOCUS = 3
     ZSTACK_ENABLE = 4
