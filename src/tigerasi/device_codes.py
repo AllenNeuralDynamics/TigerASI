@@ -67,6 +67,8 @@ class ErrorCodes(Enum):
 class FirmwareModules(Enum):
     SCAN_MODULE = "SCAN MODULE"
     ARRAY_MODULE = "ARRAY MODULE"
+    ENC_INT = "ENC INT"
+    IN0_INT = "IN0 INT"
 
 
 class JoystickInput(Enum):

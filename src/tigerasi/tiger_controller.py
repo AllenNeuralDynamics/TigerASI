@@ -1018,6 +1018,12 @@ class TigerController:
         # Aggregate specified params.
         param_str = f"{in0_str}{out0_str}{auxstate_str}{polarity_str}" \
                     f"{auxmask_str}{auxmode_str}".rstrip()
+        # Check that SCAN_MODULE, ENC_INT, or IN0_INT firmware exists.
+        if in0_mode == TTLIn0Mode.ENC_INT:
+            self._has_firmware(self._scan_card_addr,
+                               [FirmwareModules.SCAN_MODULE,
+                                FirmwareModules.ENC_INT,
+                                FirmwareModules.IN0_INT])
         # Infer address of card or cards for a repeated move.
         if in0_mode == TTLIn0Mode.REPEAT_LAST_REL_MOVE and card_address is None:
             cards = {self.axis_to_card[x][0] for x in self._last_rel_move_axes}
