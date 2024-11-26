@@ -897,15 +897,22 @@ class TigerController:
         self._set_cmd_args_and_kwds(Cmds.ARRAY, card_address=card_address,
                                     wait=wait)
 
-    def reset_ring_buffer(self, wait: bool = True):
+    def reset_ring_buffer(self, axis: str = None, wait: bool = True):
         """Clear the ring buffer contents."""
-        self._clear_ring_buffer(wait=wait)
-        self._rb_axes = []
+        if axis:
+            self._clear_ring_buffer(axis=axis, wait=wait)
+        else:
+            self._clear_ring_buffer(wait=wait)
+            self._rb_axes = []
 
-    def _clear_ring_buffer(self, wait: bool = True):
+    def _clear_ring_buffer(self, axis: str = None, wait: bool = True):
         """Clear the ring buffer contents."""
         kwds = {'X': 0}
-        self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds, wait=wait)
+        if axis:
+            card_address, _ = self.axis_to_card[axis]
+            self._set_cmd_args_and_kwds(Cmds.RBMODE, card_address=card_address, **kwds, wait=wait)
+        else:
+            self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds, wait=wait)
 
     @axis_check('mode', 'wait')
     def setup_ring_buffer(self, *axes: str,
@@ -1399,4 +1406,3 @@ class TigerController:
                 val = words[1].split()
                 dict_reply[words[0]] = val
         return dict_reply
-
