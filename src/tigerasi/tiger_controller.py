@@ -351,7 +351,7 @@ class TigerController:
         return self._reset_setting(Cmds.SETUP, *axes, wait=wait)
 
     @axis_check('wait')
-    def set_axis_backlash(self, wait: bool = True, **axes: float):
+    def set_axis_backlash(self, *axes: str):
         """Set the backlash compensation value for one or more axes.
         Clear (i.e: disable) backlash compensation by writing 0 to that axis.
         A nonzero setting causes the corresponding axis to apply a backlash
@@ -363,6 +363,23 @@ class TigerController:
         :param axes: one or more axes specified by name where the value is
             the absolute position (in steps) to move to.
         :param wait: wait until the reply has been received.
+        """
+        return self._get_axis_value(Cmds.BACKLASH, *axes)
+
+    @axis_check('wait')
+    def get_axis_backlash(self, wait: bool = True, **axes: float):
+        """Return the backlash compensation value for one or more axes.
+
+        :param axes: one or more axes to request the backlash compensation from.
+
+        :returns: a dict keyed by uppercase lettered axis whose value is
+            the backlash compensation (float).
+
+        .. code-block:: python
+
+            box.get_backlash_compensation('x')  # returns: {'X': 0.1}
+            box.get_backlash_compensation('x', 'y')  # returns: {'X': 0.1, 'Y': 0.2}
+
         """
         self._set_cmd_args_and_kwds(Cmds.BACKLASH, **axes, wait=wait)
 
