@@ -914,7 +914,7 @@ class TigerController:
 
     def reset_ring_buffer(self, axis: str = None, wait: bool = True):
         """Clear the ring buffer contents.
-        See `RING BUFFER MODULE <https://asiimaging.com/docs/ring_buffer>`
+        See `RING BUFFER MODULE <https://asiimaging.com/docs/ring_buffer>`_
         for mode details.
         
         .. WARNING:: This command is card-specific and axes on a shared card 
