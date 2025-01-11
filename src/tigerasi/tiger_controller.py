@@ -367,6 +367,21 @@ class TigerController:
         self._set_cmd_args_and_kwds(Cmds.BACKLASH, **axes, wait=wait)
 
     @axis_check()
+    def get_axis_backlash(self, *axes: str):
+        """Return the backlash compensation value for one or more axes.
+
+        :param axes: one or more lettered axes (case insensitive).
+        :return: backlash compensation of requested axes in dict form (upper case).
+
+        .. code-block:: python
+
+            box.get_axis_backlash('x')  # returns: {'X': 0.1}
+            box.get_axis_backlash('x', 'y')  # returns: {'X': 0.1, 'Y': 0.2}
+
+        """
+        return self._get_axis_value(Cmds.BACKLASH, *axes)
+
+    @axis_check()
     def get_position(self, *axes: str):
         """Return the controller's locations for lettered (non-numeric) axes.
         Note: filter wheel positions are not accessible this way.
@@ -897,15 +912,26 @@ class TigerController:
         self._set_cmd_args_and_kwds(Cmds.ARRAY, card_address=card_address,
                                     wait=wait)
 
-    def reset_ring_buffer(self, wait: bool = True):
-        """Clear the ring buffer contents."""
-        self._clear_ring_buffer(wait=wait)
-        self._rb_axes = []
+    def reset_ring_buffer(self, axis: str = None, wait: bool = True):
+        """Clear the ring buffer contents.
+        See `RING BUFFER MODULE <https://asiimaging.com/docs/ring_buffer>`_
+        for mode details.
+        
+        .. WARNING:: This command is card-specific and axes on a shared card 
+        will also be affected.
 
-    def _clear_ring_buffer(self, wait: bool = True):
-        """Clear the ring buffer contents."""
-        kwds = {'X': 0}
-        self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds, wait=wait)
+        :param axis: axis for ring buffer reset.
+        :param wait: wait until the reply has been received.
+        """
+        kwds = {"X": 0}
+        if axis:
+            card_address, _ = self.axis_to_card[axis]
+            self._set_cmd_args_and_kwds(
+                Cmds.RBMODE, card_address=card_address, **kwds, wait=wait
+            )
+        else:
+            self._set_cmd_args_and_kwds(Cmds.RBMODE, **kwds, wait=wait)
+            self._rb_axes = []
 
     @axis_check('mode', 'wait')
     def setup_ring_buffer(self, *axes: str,
