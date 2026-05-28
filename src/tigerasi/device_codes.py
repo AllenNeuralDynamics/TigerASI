@@ -67,6 +67,8 @@ class ErrorCodes(Enum):
 class FirmwareModules(Enum):
     SCAN_MODULE = "SCAN MODULE"
     ARRAY_MODULE = "ARRAY MODULE"
+    ENC_INT = "ENC INT"
+    IN0_INT = "IN0 INT"
 
 
 class JoystickInput(Enum):
@@ -144,6 +146,7 @@ class RingBufferMode(Enum):
 class TTLIn0Mode(Enum):
     OFF = 0
     MOVE_TO_NEXT_ABS_POSITION = 1
+    ENC_INT = 1  # ENC_INT module https://asiimaging.com/docs/scan_module.
     REPEAT_LAST_REL_MOVE = 2
     AUTOFOCUS = 3
     ZSTACK_ENABLE = 4
